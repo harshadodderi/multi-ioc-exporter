@@ -144,6 +144,31 @@ Suggested file name: **`otx-ioc-exporter.html`**
 - No authentication storage — API key is not saved between sessions
 - Internet connection required (calls OTX API live)
 
+## ⚠ Security Considerations (CORS Extension)
+
+This tool requires a CORS-unblocking browser extension to communicate with the OTX API from a local file. Be aware of the following risks before use:
+
+### What the extension does
+CORS (Cross-Origin Resource Sharing) is a browser security mechanism that prevents websites and local files from making requests to external APIs without explicit permission. A CORS-unblocking extension bypasses this by injecting `Access-Control-Allow-Origin: *` into every response — globally, across all tabs.
+
+### Risks while the extension is enabled
+
+- **Any website you visit can make cross-origin requests freely** — malicious sites can silently call APIs, internal network endpoints, or services that rely on CORS as a security boundary
+- **Internal network exposure** — if you are on a corporate VPN or internal network, enabled CORS extensions can allow pages to probe and reach internal services (dashboards, admin panels, APIs) that are normally protected by same-origin policy
+- **Session token abuse** — authenticated sessions (cookies, tokens) stored in your browser can be leveraged by malicious scripts to call third-party services on your behalf
+- **No tab isolation** — the extension does not limit its bypass to just this tool; every open tab is affected simultaneously
+
+### How to stay safe
+
+| Practice | Why |
+|---|---|
+| Enable the extension only when actively using this tool | Minimizes your exposure window |
+| Close all other tabs before enabling | Prevents other pages from exploiting the open CORS policy |
+| Disable immediately after exporting | Do not leave it on during normal browsing |
+| Do not use on a work machine connected to internal networks | Risks exposing internal endpoints |
+| Use a separate browser profile for this tool | Isolates cookies and sessions from your main profile |
+
+> **Recommended approach:** Use a dedicated Chrome or Firefox profile exclusively for this tool, with the CORS extension installed only in that profile. This fully isolates the risk from your primary browsing session.
 ---
 
 ## License
