@@ -1243,6 +1243,150 @@ h1 .hi { color: var(--cyan); }
   .providers { grid-template-columns: 1fr; }
 }
 
+/* ══════════════════════════════════════════════════ */
+/* SECURITY MODALS                                    */
+/* ══════════════════════════════════════════════════ */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+  z-index: 9999;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-overlay.active { display: flex; }
+
+.modal-box {
+  background: #0f1318;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 14px;
+  padding: 2rem;
+  max-width: 520px;
+  width: 90%;
+  max-height: 85vh;
+  overflow-y: auto;
+  animation: fadeUp 0.25s ease;
+}
+
+@keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+
+.modal-icon {
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  margin-bottom: 14px;
+}
+
+.modal-icon.warn { background: rgba(245,166,35,0.15); color: #f5a623; }
+.modal-icon.ok { background: rgba(0,229,160,0.12); color: #00e5a0; }
+
+.modal-title {
+  font-family: 'Syne', 'Outfit', sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  color: #e8eaf0;
+  margin-bottom: 12px;
+}
+
+.modal-checklist {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.modal-checklist li {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 12px;
+  color: #8a91a0;
+  line-height: 1.6;
+}
+
+.modal-checklist .chk {
+  width: 18px; height: 18px;
+  border-radius: 4px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.04);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px;
+  color: #00e5a0;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.modal-checklist li strong { color: #e8eaf0; }
+
+.modal-btns {
+  display: flex;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.modal-btn {
+  flex: 1;
+  height: 40px;
+  border-radius: 8px;
+  border: none;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.modal-btn.primary {
+  background: #00e5a0;
+  color: #0a0c0f;
+}
+
+.modal-btn.primary:hover { background: #00ffb3; }
+
+.modal-btn.primary-cyan {
+  background: #00d4ff;
+  color: #0a0c0f;
+}
+
+.modal-btn.primary-cyan:hover { background: #33dcff; }
+
+.modal-btn.secondary {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.12);
+  color: #8a91a0;
+}
+
+.modal-btn.secondary:hover { background: rgba(255,255,255,0.04); color: #e8eaf0; }
+
+.modal-note {
+  font-size: 10px;
+  color: #555d6e;
+  margin-top: 12px;
+  line-height: 1.6;
+}
+
+/* abuse.ch security reminder */
+.security-reminder {
+  display: none;
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: rgba(245,166,35,0.06);
+  border: 1px solid rgba(245,166,35,0.15);
+  border-radius: 8px;
+  font-size: 10.5px;
+  color: #f5a623;
+  line-height: 1.65;
+  animation: fadeUp 0.3s ease;
+}
+
+.security-reminder strong { color: #fcd34d; }
+.security-reminder code { color: #00d4ff; font-size: 10px; }
+
 </style>
 </head>
 <body>
@@ -1283,8 +1427,8 @@ h1 .hi { color: var(--cyan); }
     <p class="subtitle">Fetch your subscribed OTX pulses one page at a time (50 per page, up to 10 pages). Load more on demand, filter by type or TLP, and export IOCs with pulse links.</p>
   </header>
 
-  <!-- CORS Setup Banner -->
-  <div class="cors-banner">
+  <!-- CORS Setup Banner (shown if CORS check fails or pending) -->
+  <div class="cors-banner" id="corsBannerWarn">
     <div class="cors-banner-header" onclick="toggleCors()">
       <div class="warn-icon">!</div>
       <h3>CORS Setup Required — Read Before Fetching</h3>
@@ -1335,6 +1479,17 @@ h1 .hi { color: var(--cyan); }
         ⚠ Security note: CORS extensions weaken your browser's same-origin protection. Use them only on trusted pages and disable immediately after use.
       </div>
     </div>
+  </div>
+
+  <!-- CORS OK Banner (shown if auto-detect passes) -->
+  <div id="corsBannerOk" style="display:none;background:rgba(0,229,160,0.06);border:1px solid rgba(0,229,160,0.2);border-radius:12px;padding:1rem 1.5rem;margin-bottom:2rem;animation:fadeDown 0.4s ease;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="width:20px;height:20px;background:var(--accent);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#0a0c0f;font-weight:700;flex-shrink:0;">✓</div>
+      <h3 style="font-family:var(--sans);font-size:14px;font-weight:600;color:var(--accent);flex:1;">CORS is working — no extension needed</h3>
+    </div>
+    <p style="font-size:11px;color:var(--text2);margin-top:8px;line-height:1.6;">
+      Auto-detected that OTX API is reachable from this origin. You can fetch IOCs directly without a CORS extension. Just paste your API key and click Fetch IOCs.
+    </p>
   </div>
 
   <!-- API Key Card -->
@@ -1509,6 +1664,11 @@ h1 .hi { color: var(--cyan); }
       </button>
     </div>
     <div class="code-box" id="codeBox"></div>
+
+    <!-- Security reminder shown after copy -->
+    <div class="security-reminder" id="abSecReminder">
+      <strong>🔒 Security built in:</strong> This command auto-clears your PowerShell history after execution so your Auth-Key doesn't persist in <code>Get-History</code> or the PSReadLine history file. If running on a shared jump box, also check <code>%APPDATA%\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt</code> manually.
+    </div>
   </div>
 
 </div>
@@ -1554,6 +1714,13 @@ function switchTab(tab) {
   let hasNextPulsePage = false;
   let apiKey = '';
 
+  // Security modal state
+  let preFetchShown = false;
+  let postExportShown = false;
+
+  function showModal(id) { document.getElementById(id).classList.add('active'); }
+  function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
   function toggleCors() {
     corsCollapsed = !corsCollapsed;
     document.getElementById('corsBody').classList.toggle('hidden', corsCollapsed);
@@ -1588,6 +1755,21 @@ function switchTab(tab) {
   async function startFetch() {
     const key = document.getElementById('apiKey').value.trim();
     if (!key) { showError('Please paste your AlienVault OTX API key above.'); return; }
+
+    // Show security checklist modal once per session
+    if (!preFetchShown) {
+      preFetchShown = true;
+      apiKey = key;
+      showModal('preFetchModal');
+      return; // proceedFetch() is called from the modal button
+    }
+
+    proceedFetch();
+  }
+
+  async function proceedFetch() {
+    const key = document.getElementById('apiKey').value.trim();
+    if (!key) return;
     apiKey = key;
 
     showError('');
@@ -1813,10 +1995,12 @@ function switchTab(tab) {
     const h = ['Date','IOC Value','Type','Pulse','Pulse URL','Author','TLP','Tags','Created','Description'];
     const rows = filteredIOCs.map(i => [i.created ? i.created.slice(0,10) : '',i.value,i.type,i.pulse,i.pulse_url,i.author,i.tlp,i.tags,i.created,i.description].map(v => `"${String(v||'').replace(/"/g,'""')}"`).join(','));
     dl(`AlienVault_IOCs_${ts()}.csv`, [h.join(','), ...rows].join('\n'), 'text/csv');
+    if (!postExportShown) { postExportShown = true; showModal('postExportModal'); }
   }
 
   function exportJSON() {
     dl(`AlienVault_IOCs_${ts()}.json`, JSON.stringify(filteredIOCs, null, 2), 'application/json');
+    if (!postExportShown) { postExportShown = true; showModal('postExportModal'); }
   }
 
   function dl(name, content, type) {
@@ -1862,6 +2046,25 @@ function switchTab(tab) {
       });
     });
   }
+  // ── CORS auto-detection ──
+  // Fires a lightweight request to OTX on page load.
+  // If it succeeds → CORS works from this origin → show green banner, hide amber.
+  // If it fails → CORS blocked → show amber banner with extension instructions.
+  (async function detectCors() {
+    try {
+      const r = await fetch('https://otx.alienvault.com/api/v1/pulses/activity?limit=1', {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      });
+      if (r.ok || r.status === 403 || r.status === 401) {
+        // Request reached OTX (even 401/403 means CORS is not blocking)
+        document.getElementById('corsBannerWarn').style.display = 'none';
+        document.getElementById('corsBannerOk').style.display = 'block';
+      }
+    } catch(e) {
+      // fetch threw → CORS blocked → keep the amber warning visible (default)
+    }
+  })();
 
 </script>
 
@@ -1906,20 +2109,23 @@ function generate() {
 
   const exportPart = `$all|Export-Csv "$d\\iocs_$t.csv" -NoType;$all|select -Expand IOC|Out-File "$d\\iocs_$t.txt";Write-Host "\`n  Total: $($all.Count) IOCs exported to $d\\" -Fore Cyan`;
 
+  // Auto-cleanup: clear PS history so Auth-Key doesn't persist in terminal history
+  const cleanup = `;Clear-History;try{[Microsoft.PowerShell.PSConsoleReadLine]::ClearHistory()}catch{};Write-Host "\`n  [SECURITY] PowerShell history cleared — Auth-Key removed from terminal." -Fore DarkGray`;
+
   let cmd = '';
   let label = '';
 
   if (currentProv === 'all') {
-    cmd = `${h};${dir};${mbFetch};${uhFetch};${tfFetch};$all=@();${mbParse};${uhParse};${tfParse};${exportPart}`;
+    cmd = `${h};${dir};${mbFetch};${uhFetch};${tfFetch};$all=@();${mbParse};${uhParse};${tfParse};${exportPart}${cleanup}`;
     label = 'All 3 Providers';
   } else if (currentProv === 'mb') {
-    cmd = `${h};${dir};${mbFetch};$all=@();${mbParse};${exportPart}`;
+    cmd = `${h};${dir};${mbFetch};$all=@();${mbParse};${exportPart}${cleanup}`;
     label = 'MalwareBazaar Only';
   } else if (currentProv === 'uh') {
-    cmd = `${h};${dir};${uhFetch};$all=@();${uhParse};${exportPart}`;
+    cmd = `${h};${dir};${uhFetch};$all=@();${uhParse};${exportPart}${cleanup}`;
     label = 'URLhaus Only';
   } else if (currentProv === 'tf') {
-    cmd = `${h};${dir};${tfFetch};$all=@();${tfParse};${exportPart}`;
+    cmd = `${h};${dir};${tfFetch};$all=@();${tfParse};${exportPart}${cleanup}`;
     label = 'ThreatFox Only';
   }
 
@@ -1940,6 +2146,8 @@ function copyCmd() {
     const cb = document.getElementById('copyBtn');
     cb.classList.add('copied');
     cb.innerHTML = '<span>✓</span> Copied!';
+    // Show security reminder
+    document.getElementById('abSecReminder').style.display = 'block';
     setTimeout(() => {
       cb.classList.remove('copied');
       cb.innerHTML = '<span>⧉</span> Copy Command';
@@ -1948,6 +2156,46 @@ function copyCmd() {
 }
 
 </script>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- SECURITY MODALS                                -->
+<!-- ══════════════════════════════════════════════ -->
+
+<!-- Pre-fetch modal (AlienVault) -->
+<div class="modal-overlay" id="preFetchModal">
+  <div class="modal-box">
+    <div class="modal-icon warn">⚡</div>
+    <div class="modal-title">Security Checklist — Before Fetching</div>
+    <ul class="modal-checklist">
+      <li><span class="chk">✓</span><span><strong>Close all other browser tabs</strong> — CORS extensions affect every tab. Other sites could exploit the open policy while the extension is active.</span></li>
+      <li><span class="chk">✓</span><span><strong>Verify your CORS extension is ON</strong> — check the toolbar icon. If CORS auto-detected as working (green banner), you can skip this.</span></li>
+      <li><span class="chk">✓</span><span><strong>Use a dedicated browser profile</strong> if possible — isolates cookies and sessions from your main browsing profile.</span></li>
+      <li><span class="chk">✓</span><span><strong>Do not browse other sites</strong> while the extension is enabled — fetch your IOCs, export, then disable immediately.</span></li>
+    </ul>
+    <div class="modal-btns">
+      <button class="modal-btn secondary" onclick="closeModal('preFetchModal')">Cancel</button>
+      <button class="modal-btn primary" onclick="closeModal('preFetchModal'); proceedFetch();">I understand — Fetch IOCs</button>
+    </div>
+    <div class="modal-note">This checklist shows once per session. Subsequent fetches and page loads won't show it again.</div>
+  </div>
+</div>
+
+<!-- Post-export modal (AlienVault) -->
+<div class="modal-overlay" id="postExportModal">
+  <div class="modal-box">
+    <div class="modal-icon ok">✓</div>
+    <div class="modal-title">Export Complete — Secure Your Session</div>
+    <ul class="modal-checklist">
+      <li><span class="chk">✓</span><span><strong>Disable your CORS extension NOW</strong> — click the toolbar icon and toggle it OFF before doing anything else.</span></li>
+      <li><span class="chk">✓</span><span><strong>Close this tab</strong> if you're done fetching — the fewer tabs open with CORS active, the smaller your attack surface.</span></li>
+      <li><span class="chk">✓</span><span><strong>Your exported file</strong> is saved to your Downloads folder. Verify it's there before closing.</span></li>
+    </ul>
+    <div class="modal-btns">
+      <button class="modal-btn secondary" onclick="closeModal('postExportModal')">Stay open — I need more data</button>
+      <button class="modal-btn primary" onclick="closeModal('postExportModal')">Got it — I'll disable CORS now</button>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>

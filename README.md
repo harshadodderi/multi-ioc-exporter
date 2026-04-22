@@ -38,6 +38,9 @@ Two tools in one HTML file, accessible via tabs:
 - **Export to CSV** — includes Date, IOC Value, Type, Pulse, Pulse URL, Author, TLP, Tags, Created (full timestamp), and Description
 - **Export to JSON** — full structured data for each IOC including pulse URL, suitable for scripting or pipeline ingestion
 - **Stats bar** — shows total IOC count, pulse count, distinct IOC types, and distinct authors across all loaded pages
+- **CORS auto-detection** — on page load, the tool pings the OTX API to check if CORS is working from the current origin. If it is (e.g., GitHub Pages, localhost), the CORS extension warning is replaced with a green "✓ CORS is working" banner. If not (e.g., `file://`), the full extension setup guide is shown
+- **Pre-fetch security modal** — before the first fetch in each session, a checklist modal prompts the user to close other tabs, verify the CORS extension, and use a dedicated browser profile. Shows once per session, then does not reappear for subsequent fetches
+- **Post-export security modal** — after the first CSV or JSON export, a modal reminds the user to disable the CORS extension immediately, close the tab, and verify the downloaded file. Shows once per session
 
 ### abuse.ch Tab (PowerShell Generator)
 - **One-click command generation** — paste your Auth-Key, select providers, click Generate, copy the command
@@ -46,6 +49,8 @@ Two tools in one HTML file, accessible via tabs:
 - **Timestamped output** — files saved to `.\abuse_ch_iocs\` with `iocs_YYYY-MM-DD_HH-mm-ss` naming
 - **No CORS issues** — PowerShell talks directly to the APIs, bypassing all browser restrictions
 - **Runs offline** — the HTML page itself is just a command generator; your Auth-Key never leaves your machine
+- **Auto history cleanup** — every generated command ends with `Clear-History` and `[Microsoft.PowerShell.PSConsoleReadLine]::ClearHistory()` so your Auth-Key does not persist in PowerShell terminal history or the PSReadLine history file
+- **Security reminder on copy** — after clicking "Copy Command", a warning appears reminding users about the PSReadLine history file location (`%APPDATA%\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt`) for shared environments like jump boxes
 
 ---
 
@@ -55,9 +60,9 @@ Two tools in one HTML file, accessible via tabs:
 
 #### 1. Handle CORS
 
-Because this tool runs as a local file in your browser, the OTX API will block requests by default due to browser CORS policy. You need a CORS-unblocking extension — this takes about 60 seconds to set up.
+The tool **auto-detects** whether CORS is working on page load by pinging the OTX API. If you're hosting on GitHub Pages or localhost and OTX allows the origin, the CORS extension warning is automatically replaced with a green "✓ CORS is working" banner — no extension needed.
 
-Install one of the following:
+If CORS is blocked (e.g., opening as `file://`), the full extension setup guide is shown. Install one of the following:
 
 | Browser | Extension |
 |---|---|
@@ -183,20 +188,24 @@ multi-source-ioc-exporter.html
 ├── Tab Bar (AlienVault OTX | abuse.ch)
 │
 ├── Tab 1: AlienVault OTX
-│   ├── CORS setup guide (collapsible)
+│   ├── CORS auto-detection (pings OTX on load → green/amber banner swap)
+│   ├── CORS setup guide (collapsible, shown only if auto-detect fails)
 │   ├── API key input
+│   ├── Pre-fetch security modal (once per session)
 │   ├── Progress bar + status line
 │   ├── Stats bar (IOC count, pulse count, types, authors)
 │   ├── Pulse page nav (1–10, on-demand fetch)
 │   ├── Filter controls (type, TLP, search)
 │   ├── Resizable IOC table with pagination
+│   ├── Post-export security modal (once per session)
 │   └── JS: fetchPulsePage() → extractIOCs() → renderTable() → exportCSV/JSON()
 │
 └── Tab 2: abuse.ch (PowerShell Generator)
     ├── Auth-Key input
     ├── Provider selection (All / MalwareBazaar / URLhaus / ThreatFox)
-    ├── Generate button → builds PowerShell one-liner
+    ├── Generate button → builds PowerShell one-liner + auto history cleanup
     ├── Copy-to-clipboard output box
+    ├── Security reminder (shown after copy — PSReadLine file path warning)
     └── Step-by-step instructions
 ```
 
@@ -225,20 +234,64 @@ Suggested file name: **`multi-source-ioc-exporter.html`**
 
 ## Limitations
 
-- **AlienVault OTX tab** requires a CORS browser extension to function (browser security restriction on local files)
+- **AlienVault OTX tab** may require a CORS browser extension when opened as `file://`. When hosted on GitHub Pages or localhost, CORS auto-detection checks on page load and may work without an extension
 - **abuse.ch tab** requires PowerShell (Windows) — the HTML page generates the command, PowerShell executes it
 - AlienVault fetches up to 500 pulses per session (10 pages × 50 pulses). For larger OTX subscriptions, use the OTX Python SDK or DirectConnect API
 - abuse.ch APIs require a free Auth-Key from [auth.abuse.ch](https://auth.abuse.ch/)
 - No authentication storage — API keys are not saved between sessions
 - Internet connection required (both tabs call APIs live)
+- PowerShell history cleanup (`ClearHistory()`) may fail silently on restricted environments — always verify on shared machines
 
 ---
 
 ## ⚠ Security Considerations
 
-### CORS Extension (AlienVault Tab Only)
+### Built-in Security Features
 
-This tab requires a CORS-unblocking browser extension to communicate with the OTX API from a local file. Be aware of the following risks:
+The tool includes several active security measures that guide users toward safe operational habits:
+
+#### AlienVault Tab — Session Security Modals
+
+**Pre-fetch checklist modal** — on the first "Fetch IOCs" click in each session, a modal appears requiring the user to acknowledge:
+- Close all other browser tabs (CORS extension affects all tabs)
+- Verify CORS extension is active (or that auto-detection confirmed CORS is working)
+- Use a dedicated browser profile if possible
+- Do not browse other sites while extension is enabled
+
+The user must click "I understand — Fetch IOCs" to proceed. The modal shows once per session and does not reappear for subsequent fetches or page loads.
+
+**Post-export reminder modal** — after the first CSV or JSON export in a session, a modal prompts:
+- Disable CORS extension immediately
+- Close the tab if done fetching
+- Verify the exported file landed in Downloads
+
+Shows once per session. Users can dismiss with "Stay open — I need more data" if they're loading additional pulse pages.
+
+**CORS auto-detection** — on page load, the tool sends a lightweight GET to `otx.alienvault.com/api/v1/pulses/activity?limit=1`. If any HTTP response is received (200, 401, or 403), CORS is working — the amber warning banner hides and a green "✓ CORS is working" banner appears. If the `fetch()` throws (CORS block), the amber setup guide stays visible. This means users on GitHub Pages or localhost see no unnecessary warnings.
+
+#### abuse.ch Tab — Auth-Key Hygiene
+
+**Auto history cleanup** — every generated PowerShell command appends:
+```powershell
+;Clear-History;try{[Microsoft.PowerShell.PSConsoleReadLine]::ClearHistory()}catch{}
+```
+This removes the Auth-Key from:
+- `Get-History` (in-session command history)
+- PSReadLine history file (persistent across sessions)
+
+A confirmation message prints in the terminal: `[SECURITY] PowerShell history cleared — Auth-Key removed from terminal.`
+
+**Security reminder on copy** — when the user clicks "Copy Command", a persistent reminder appears warning about the PSReadLine history file location for shared environments:
+```
+%APPDATA%\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt
+```
+On shared jump boxes or multi-user workstations, this file should be checked manually if the `ClearHistory()` call fails silently.
+
+---
+
+### CORS Extension Risks (AlienVault Tab Only)
+
+This tab may require a CORS-unblocking browser extension to communicate with the OTX API from a local file. Be aware of the following risks:
 
 #### What the extension does
 CORS (Cross-Origin Resource Sharing) is a browser security mechanism that prevents websites and local files from making requests to external APIs without explicit permission. A CORS-unblocking extension bypasses this by injecting `Access-Control-Allow-Origin: *` into every response — globally, across all tabs.
@@ -262,11 +315,13 @@ CORS (Cross-Origin Resource Sharing) is a browser security mechanism that preven
 
 > **Recommended approach:** Use a dedicated Chrome or Firefox profile exclusively for this tool, with the CORS extension installed only in that profile. This fully isolates the risk from your primary browsing session.
 
-### abuse.ch Tab (PowerShell)
+### abuse.ch Tab — Credential Handling
 
-- Your Auth-Key is embedded in the generated PowerShell command — do not share the command with others
+- Your Auth-Key is embedded in the generated PowerShell command — **do not share the command** with others or paste it into shared chat channels
 - The HTML page runs entirely offline for command generation; your key never leaves your machine via the browser
 - PowerShell sends the Auth-Key directly to abuse.ch APIs over HTTPS — no third-party proxy or intermediary
+- The auto-cleanup appended to every command removes the key from PowerShell history, but on shared machines always verify the PSReadLine history file manually
+- If your Auth-Key is compromised, regenerate it immediately at [auth.abuse.ch](https://auth.abuse.ch/) — the old key is invalidated instantly
 
 ---
 
