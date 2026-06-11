@@ -1717,6 +1717,7 @@ function switchTab(tab) {
   // Security modal state
   let preFetchShown = false;
   let postExportShown = false;
+  let corsDetected = false;
 
   function showModal(id) { document.getElementById(id).classList.add('active'); }
   function closeModal(id) { document.getElementById(id).classList.remove('active'); }
@@ -1753,19 +1754,21 @@ function switchTab(tab) {
 
   // ── Initial fetch (pulse page 1) ──
   async function startFetch() {
-    const key = document.getElementById('apiKey').value.trim();
-    if (!key) { showError('Please paste your AlienVault OTX API key above.'); return; }
-
-    // Show security checklist modal once per session
-    if (!preFetchShown) {
-      preFetchShown = true;
-      apiKey = key;
-      showModal('preFetchModal');
-      return; // proceedFetch() is called from the modal button
-    }
-
-    proceedFetch();
+  const key = document.getElementById('apiKey').value.trim();
+  if (!key) { 
+    showError('Please paste your AlienVault OTX API key above.'); 
+    return; 
   }
+
+  if (!corsDetected && !preFetchShown) {
+    preFetchShown = true;
+    apiKey = key;
+    showModal('preFetchModal');
+    return;
+  }
+
+  proceedFetch();
+}
 
   async function proceedFetch() {
     const key = document.getElementById('apiKey').value.trim();
@@ -2051,20 +2054,20 @@ function switchTab(tab) {
   // If it succeeds → CORS works from this origin → show green banner, hide amber.
   // If it fails → CORS blocked → show amber banner with extension instructions.
   (async function detectCors() {
-    try {
-      const r = await fetch('https://otx.alienvault.com/api/v1/pulses/activity?limit=1', {
-        method: 'GET',
-        headers: { 'Accept': 'application/json' }
-      });
-      if (r.ok || r.status === 403 || r.status === 401) {
-        // Request reached OTX (even 401/403 means CORS is not blocking)
-        document.getElementById('corsBannerWarn').style.display = 'none';
-        document.getElementById('corsBannerOk').style.display = 'block';
-      }
-    } catch(e) {
-      // fetch threw → CORS blocked → keep the amber warning visible (default)
+  try {
+    const r = await fetch('https://otx.alienvault.com/api/v1/pulses/activity?limit=1', {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' }
+    });
+    if (r.ok || r.status === 403 || r.status === 401) {
+      corsDetected = true;
+      document.getElementById('corsBannerWarn').style.display = 'none';
+      document.getElementById('corsBannerOk').style.display = 'block';
     }
-  })();
+  } catch (e) {
+    corsDetected = false;
+  }
+})();
 
 </script>
 
