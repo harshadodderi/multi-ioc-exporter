@@ -1,0 +1,1165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AlienVault OTX — IOC Exporter</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0c0f;
+    --bg2: #0f1215;
+    --bg3: #141820;
+    --bg4: #1a2030;
+    --border: rgba(255,255,255,0.06);
+    --border2: rgba(255,255,255,0.12);
+    --accent: #00e5a0;
+    --accent2: #00b87a;
+    --accent-dim: rgba(0,229,160,0.08);
+    --accent-glow: rgba(0,229,160,0.15);
+    --text: #e8eaf0;
+    --text2: #8a91a0;
+    --text3: #555d6e;
+    --red: #ff4d6a;
+    --red-dim: rgba(255,77,106,0.1);
+    --amber: #f5a623;
+    --amber-dim: rgba(245,166,35,0.1);
+    --blue: #4d9fff;
+    --blue-dim: rgba(77,159,255,0.1);
+    --purple: #a78bfa;
+    --purple-dim: rgba(167,139,250,0.1);
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid bg */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,160,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,160,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 0 2rem 4rem;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── Header ── */
+  header {
+    padding: 3rem 0 2.5rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2.5rem;
+  }
+
+  .header-top {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 8px;
+  }
+
+  .logo-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 12px var(--accent);
+    animation: blink 2s ease-in-out infinite;
+  }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .header-tag {
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+
+  h1 {
+    font-family: var(--sans);
+    font-size: clamp(26px, 4vw, 38px);
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: -0.5px;
+    line-height: 1.1;
+  }
+
+  h1 span { color: var(--accent); }
+
+  .subtitle {
+    margin-top: 10px;
+    font-size: 13px;
+    color: var(--text2);
+    line-height: 1.6;
+  }
+
+  /* ── Section titles ── */
+  .section-label {
+    font-size: 10px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 12px;
+    font-weight: 500;
+  }
+
+  /* ── CORS Banner ── */
+  .cors-banner {
+    background: var(--amber-dim);
+    border: 1px solid rgba(245,166,35,0.2);
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 2rem;
+    animation: fadeDown 0.4s ease;
+  }
+
+  @keyframes fadeDown { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+
+  .cors-banner-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .cors-banner-header .warn-icon {
+    width: 20px; height: 20px;
+    background: var(--amber);
+    border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+    color: #0a0c0f;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .cors-banner-header h3 {
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--amber);
+    flex: 1;
+  }
+
+  .cors-toggle {
+    font-size: 11px;
+    color: var(--text3);
+    letter-spacing: 1px;
+  }
+
+  .cors-body { display: block; }
+  .cors-body.hidden { display: none; }
+
+  .cors-intro {
+    font-size: 12px;
+    color: var(--text2);
+    line-height: 1.7;
+    margin-bottom: 16px;
+  }
+
+  .cors-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .cors-step {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    background: rgba(0,0,0,0.2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+
+  .step-num {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: rgba(245,166,35,0.15);
+    border: 1px solid rgba(245,166,35,0.3);
+    color: var(--amber);
+    font-size: 11px;
+    font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .step-content { flex: 1; }
+
+  .step-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 4px;
+    font-family: var(--sans);
+  }
+
+  .step-desc {
+    font-size: 11px;
+    color: var(--text2);
+    line-height: 1.6;
+  }
+
+  .step-desc a {
+    color: var(--accent);
+    text-decoration: none;
+    border-bottom: 1px solid rgba(0,229,160,0.3);
+  }
+
+  .step-desc a:hover { border-bottom-color: var(--accent); }
+
+  .ext-options {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+  }
+
+  .ext-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.15s;
+  }
+
+  .ext-pill.chrome {
+    background: rgba(77,159,255,0.1);
+    border: 1px solid rgba(77,159,255,0.25);
+    color: var(--blue);
+  }
+  .ext-pill.firefox {
+    background: rgba(245,166,35,0.1);
+    border: 1px solid rgba(245,166,35,0.25);
+    color: var(--amber);
+  }
+  .ext-pill:hover { filter: brightness(1.2); }
+
+  .warning-note {
+    margin-top: 12px;
+    padding: 10px 14px;
+    background: rgba(255,77,106,0.06);
+    border: 1px solid rgba(255,77,106,0.15);
+    border-radius: 6px;
+    font-size: 11px;
+    color: var(--red);
+    line-height: 1.6;
+  }
+
+  /* ── API Key Card ── */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .card:hover { border-color: var(--border2); }
+
+  .key-row {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .key-input-wrap {
+    position: relative;
+    flex: 1;
+  }
+
+  .key-input-wrap input {
+    width: 100%;
+    height: 44px;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 0 14px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+    letter-spacing: 1px;
+  }
+
+  .key-input-wrap input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+  .key-input-wrap input::placeholder { color: var(--text3); letter-spacing: 0; }
+
+  .btn {
+    height: 44px;
+    padding: 0 18px;
+    border-radius: 8px;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--text2);
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+    letter-spacing: 0.5px;
+  }
+
+  .btn:hover { border-color: var(--border2); background: var(--bg3); color: var(--text); }
+  .btn:active { transform: scale(0.97); }
+
+  .btn-fetch {
+    background: var(--accent);
+    color: #0a0c0f;
+    border-color: var(--accent);
+    font-weight: 600;
+    padding: 0 26px;
+    font-size: 13px;
+  }
+
+  .btn-fetch:hover { background: #00ffb3; border-color: #00ffb3; color: #0a0c0f; }
+  .btn-fetch:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+  /* ── Progress ── */
+  .progress-wrap {
+    height: 2px;
+    background: var(--border);
+    border-radius: 1px;
+    margin: 1rem 0;
+    overflow: hidden;
+    display: none;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 1px;
+    transition: width 0.35s ease;
+    box-shadow: 0 0 8px var(--accent);
+  }
+
+  /* ── Error ── */
+  .error-box {
+    background: var(--red-dim);
+    border: 1px solid rgba(255,77,106,0.25);
+    border-radius: 8px;
+    padding: 12px 16px;
+    color: var(--red);
+    font-size: 12px;
+    margin-bottom: 1.25rem;
+    line-height: 1.6;
+    display: none;
+  }
+
+  /* ── Stats ── */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0,1fr));
+    gap: 10px;
+    margin-bottom: 1.5rem;
+    display: none;
+  }
+
+  .stat {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent);
+    opacity: 0.4;
+  }
+
+  .stat-label {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 8px;
+  }
+
+  .stat-value {
+    font-family: var(--sans);
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  /* ── Controls ── */
+  .controls {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    align-items: center;
+    display: none;
+  }
+
+  .controls select,
+  .controls input[type=text] {
+    height: 36px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 0 12px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .controls select:focus,
+  .controls input[type=text]:focus { border-color: var(--accent); }
+
+  .controls input[type=text] { min-width: 200px; flex: 1; }
+
+  .controls .btn { height: 36px; font-size: 12px; }
+  .controls .btn-export {
+    background: var(--accent-dim);
+    border-color: rgba(0,229,160,0.25);
+    color: var(--accent);
+  }
+  .controls .btn-export:hover { background: rgba(0,229,160,0.15); }
+
+  /* ── Table ── */
+  .table-section { display: none; }
+
+  .table-wrap {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow-x: auto;
+    overflow-y: visible;
+  }
+
+  table {
+    width: max-content;
+    min-width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    table-layout: fixed;
+  }
+
+  thead th {
+    background: var(--bg3);
+    color: var(--text3);
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    font-weight: 500;
+    padding: 12px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    position: relative;
+    user-select: none;
+    overflow: hidden;
+  }
+
+  /* Resize handle */
+  thead th .col-resizer {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 5px;
+    cursor: col-resize;
+    background: transparent;
+    z-index: 10;
+    transition: background 0.15s;
+  }
+
+  thead th .col-resizer:hover,
+  thead th .col-resizer.dragging {
+    background: var(--accent);
+    opacity: 0.6;
+  }
+
+  tbody td {
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--border);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text2);
+    vertical-align: middle;
+  }
+
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: var(--bg3); color: var(--text); }
+
+  td.ioc-val {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text);
+  }
+
+  .col-hint {
+    font-size: 10px;
+    color: var(--text3);
+    margin-bottom: 6px;
+    letter-spacing: 0.5px;
+  }
+  .col-hint span { color: var(--accent); }
+
+  /* ── Badges ── */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+
+  .b-ip    { background: rgba(77,159,255,0.12); color: #7db8ff; border: 1px solid rgba(77,159,255,0.2); }
+  .b-domain{ background: rgba(0,229,160,0.1);  color: var(--accent); border: 1px solid rgba(0,229,160,0.2); }
+  .b-url   { background: rgba(245,166,35,0.1); color: var(--amber); border: 1px solid rgba(245,166,35,0.2); }
+  .b-hash  { background: rgba(167,139,250,0.1);color: var(--purple); border: 1px solid rgba(167,139,250,0.2); }
+  .b-email { background: var(--red-dim); color: var(--red); border: 1px solid rgba(255,77,106,0.2); }
+  .b-def   { background: var(--bg4); color: var(--text3); border: 1px solid var(--border); }
+
+  .tlp {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .tlp-white { background: rgba(255,255,255,0.06); color: #888; }
+  .tlp-green { background: rgba(0,229,160,0.1); color: var(--accent); }
+  .tlp-amber { background: rgba(245,166,35,0.1); color: var(--amber); }
+  .tlp-red   { background: var(--red-dim); color: var(--red); }
+
+  /* ── Pagination ── */
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text3);
+  }
+
+  .page-btns { display: flex; gap: 4px; }
+
+  .page-btns button {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text2);
+    font-size: 11px;
+    font-family: var(--mono);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .page-btns button:hover { background: var(--bg3); color: var(--text); }
+  .page-btns button.active { background: var(--accent); color: #0a0c0f; border-color: var(--accent); font-weight: 700; }
+
+  /* ── Empty state ── */
+  .empty-state {
+    padding: 3rem;
+    text-align: center;
+    color: var(--text3);
+    font-size: 12px;
+    display: none;
+  }
+
+  /* ── Fetch status ── */
+  .fetch-status {
+    font-size: 11px;
+    color: var(--text3);
+    margin-top: 8px;
+    min-height: 16px;
+  }
+
+  .fetch-status .dot { color: var(--accent); }
+
+  /* ── Pulse Page Nav ── */
+  .pulse-nav {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .pnav-label {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text3);
+    white-space: nowrap;
+    font-weight: 500;
+  }
+
+  .pnav-btns {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+  }
+
+  .pnav-btn {
+    position: relative;
+    width: 34px;
+    height: 34px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--bg3);
+    color: var(--text3);
+    font-size: 12px;
+    font-family: var(--mono);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .pnav-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+  .pnav-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #0a0c0f;
+    font-weight: 700;
+    box-shadow: 0 0 10px var(--accent-glow);
+  }
+
+  .pnav-btn.loaded {
+    border-color: rgba(0,229,160,0.3);
+    color: var(--accent);
+    background: var(--accent-dim);
+  }
+
+  .loaded-dot {
+    position: absolute;
+    top: 4px; right: 4px;
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  .pnav-hint {
+    font-size: 10px;
+    color: var(--text3);
+    flex: 1;
+    min-width: 140px;
+  }
+
+  @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+  .animate-in { animation: fadeIn 0.3s ease forwards; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <header>
+    <div class="header-top">
+      <div class="logo-dot"></div>
+      <span class="header-tag">Threat Intelligence</span>
+    </div>
+    <h1>AlienVault OTX<br /><span>IOC Exporter</span></h1>
+    <p class="subtitle">Fetch your subscribed OTX pulses one page at a time (50 per page, up to 10 pages). Load more on demand, filter by type or TLP, and export IOCs with pulse links.</p>
+  </header>
+
+  <!-- CORS Setup Banner -->
+  <div class="cors-banner">
+    <div class="cors-banner-header" onclick="toggleCors()">
+      <div class="warn-icon">!</div>
+      <h3>CORS Setup Required — Read Before Fetching</h3>
+      <span class="cors-toggle" id="corsToggleLabel">▲ COLLAPSE</span>
+    </div>
+    <div class="cors-body" id="corsBody">
+      <p class="cors-intro">
+        This app runs directly in your browser. AlienVault OTX blocks cross-origin requests from local files by default (CORS policy). You need a browser extension to inject the missing headers — takes 60 seconds.
+      </p>
+      <div class="cors-steps">
+        <div class="cors-step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <div class="step-title">Install a CORS-unblocking extension</div>
+            <div class="step-desc">
+              Do <strong>not</strong> use FoxyProxy — that's a proxy router, not a CORS fix. Install one of these instead:
+              <div class="ext-options" style="margin-top:8px">
+                <a class="ext-pill chrome" href="https://chrome.google.com/webstore/detail/cors-unblock/lfhmikememgdcahcdlaciloancbhjino" target="_blank">&#x25A0; CORS Unblock (Chrome)</a>
+                <a class="ext-pill chrome" href="https://chrome.google.com/webstore/detail/allow-cors-access-control/lhobafahddgcelffkeicbaginigeejlf" target="_blank">&#x25A0; Allow CORS (Chrome)</a>
+                <a class="ext-pill firefox" href="https://addons.mozilla.org/en-US/firefox/addon/cors-everywhere/" target="_blank">&#x25A0; CORS Everywhere (Firefox)</a>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="cors-step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <div class="step-title">Enable the extension</div>
+            <div class="step-desc">Click the extension icon in your browser toolbar and toggle it <strong style="color:var(--accent)">ON</strong>. The extension intercepts responses from OTX and injects <code style="color:var(--accent);font-size:11px">Access-Control-Allow-Origin: *</code> so your browser accepts them.</div>
+          </div>
+        </div>
+        <div class="cors-step">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <div class="step-title">Paste your OTX API key below and fetch</div>
+            <div class="step-desc">Get your key from <a href="https://otx.alienvault.com/api" target="_blank">otx.alienvault.com/api</a> → "Your API Key". Paste it in the field below and click Fetch IOCs.</div>
+          </div>
+        </div>
+        <div class="cors-step">
+          <div class="step-num">4</div>
+          <div class="step-content">
+            <div class="step-title">Turn the extension OFF after you're done</div>
+            <div class="step-desc">These extensions disable CORS protection globally. Only keep it on while using this tool — toggle it off before normal browsing.</div>
+          </div>
+        </div>
+      </div>
+      <div class="warning-note">
+        ⚠ Security note: CORS extensions weaken your browser's same-origin protection. Use them only on trusted pages and disable immediately after use.
+      </div>
+    </div>
+  </div>
+
+  <!-- API Key Card -->
+  <div class="card">
+    <div class="section-label">OTX API Key</div>
+    <div class="key-row">
+      <div class="key-input-wrap">
+        <input type="password" id="apiKey" placeholder="Paste your AlienVault OTX API key here..." autocomplete="off" />
+      </div>
+      <button class="btn" id="toggleBtn" onclick="toggleKey()">Show</button>
+      <button class="btn btn-fetch" id="fetchBtn" onclick="startFetch()">Fetch IOCs</button>
+    </div>
+    <div class="fetch-status" id="fetchStatus"></div>
+  </div>
+
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-fill" id="progressFill" style="width:0%"></div>
+  </div>
+
+  <div class="error-box" id="errorBox"></div>
+
+  <!-- Stats -->
+  <div class="stats" id="statsRow">
+    <div class="stat"><div class="stat-label">Total IOCs</div><div class="stat-value" id="statTotal">0</div></div>
+    <div class="stat"><div class="stat-label">Pulses</div><div class="stat-value" id="statPulses">0</div></div>
+    <div class="stat"><div class="stat-label">IOC Types</div><div class="stat-value" id="statTypes">0</div></div>
+    <div class="stat"><div class="stat-label">Authors</div><div class="stat-value" id="statAuthors">0</div></div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls" id="controlsRow">
+    <select id="typeFilter" onchange="renderTable()">
+      <option value="">All Types</option>
+    </select>
+    <select id="tlpFilter" onchange="renderTable()">
+      <option value="">All TLP</option>
+      <option value="white">TLP:WHITE</option>
+      <option value="green">TLP:GREEN</option>
+      <option value="amber">TLP:AMBER</option>
+      <option value="red">TLP:RED</option>
+    </select>
+    <input type="text" id="searchBox" placeholder="Search IOC value or pulse name..." oninput="renderTable()" />
+    <button class="btn btn-export" onclick="exportCSV()">Export CSV</button>
+    <button class="btn btn-export" onclick="exportJSON()">Export JSON</button>
+  </div>
+
+  <!-- Pulse Page Nav -->
+  <div class="pulse-nav" id="pulseNav" style="display:none"></div>
+
+  <!-- Table -->
+  <div class="table-section" id="tableSection">
+    <div class="col-hint">⟺ <span>Drag column borders</span> to resize — scroll horizontally for more columns</div>
+    <div class="table-wrap">
+      <table id="iocTable">
+        <thead>
+          <tr>
+            <th style="min-width:100px;width:110px">Date<div class="col-resizer"></div></th>
+            <th style="min-width:160px;width:260px">IOC Value<div class="col-resizer"></div></th>
+            <th style="min-width:80px;width:110px">Type<div class="col-resizer"></div></th>
+            <th style="min-width:120px;width:200px">Pulse<div class="col-resizer"></div></th>
+            <th style="min-width:80px;width:110px">Author<div class="col-resizer"></div></th>
+            <th style="min-width:70px;width:90px">TLP<div class="col-resizer"></div></th>
+            <th style="min-width:80px;width:120px">Tags<div class="col-resizer"></div></th>
+            <th style="min-width:90px;width:110px">Pulse Link<div class="col-resizer"></div></th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+      <div class="pagination" id="pagination" style="display:none"></div>
+    </div>
+    <div class="empty-state" id="emptyState">No IOCs match your current filter.</div>
+  </div>
+
+</div>
+
+<script>
+  let allIOCs = [];
+  let filteredIOCs = [];
+  let currentTablePage = 1;
+  const TABLE_PAGE_SIZE = 50;
+  let corsCollapsed = false;
+
+  // OTX pulse-page state
+  let currentPulsePage = 1;
+  const MAX_PULSE_PAGES = 10;
+  let loadedPulsePages = new Set();
+  let hasNextPulsePage = false;
+  let apiKey = '';
+
+  function toggleCors() {
+    corsCollapsed = !corsCollapsed;
+    document.getElementById('corsBody').classList.toggle('hidden', corsCollapsed);
+    document.getElementById('corsToggleLabel').textContent = corsCollapsed ? '▼ EXPAND' : '▲ COLLAPSE';
+  }
+
+  function toggleKey() {
+    const inp = document.getElementById('apiKey');
+    const btn = document.getElementById('toggleBtn');
+    if (inp.type === 'password') { inp.type = 'text'; btn.textContent = 'Hide'; }
+    else { inp.type = 'password'; btn.textContent = 'Show'; }
+  }
+
+  function setStatus(msg) {
+    document.getElementById('fetchStatus').innerHTML = msg ? `<span class="dot">›</span> ${msg}` : '';
+  }
+
+  function setProgress(pct) {
+    const wrap = document.getElementById('progressWrap');
+    wrap.style.display = 'block';
+    document.getElementById('progressFill').style.width = pct + '%';
+    if (pct >= 100) setTimeout(() => { wrap.style.display = 'none'; }, 700);
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('errorBox');
+    if (msg) { el.innerHTML = msg; el.style.display = 'block'; }
+    else { el.style.display = 'none'; }
+  }
+
+  // ── Initial fetch (pulse page 1) ──
+  async function startFetch() {
+    const key = document.getElementById('apiKey').value.trim();
+    if (!key) { showError('Please paste your AlienVault OTX API key above.'); return; }
+    apiKey = key;
+
+    showError('');
+    const btn = document.getElementById('fetchBtn');
+    btn.disabled = true;
+    btn.textContent = 'Fetching…';
+    allIOCs = [];
+    loadedPulsePages.clear();
+    currentPulsePage = 1;
+
+    try {
+      setStatus('Connecting to OTX API…');
+      setProgress(10);
+
+      const { pulses, hasNext } = await fetchPulsePage(key, 1);
+      hasNextPulsePage = hasNext;
+      loadedPulsePages.add(1);
+
+      setProgress(60);
+      setStatus(`Processing ${pulses.length} pulses…`);
+
+      for (const p of pulses) allIOCs.push(...extractIOCs(p));
+
+      setProgress(100);
+      setStatus(`Page 1 loaded — ${allIOCs.length.toLocaleString()} IOCs. ${hasNext ? 'More pages available below.' : 'All pulses loaded.'}`);
+
+      populateTypeFilter();
+      updateStats(pulses.length);
+
+      const statsRow = document.getElementById('statsRow');
+      statsRow.style.display = 'grid';
+      statsRow.classList.add('animate-in');
+
+      document.getElementById('controlsRow').style.display = 'flex';
+      document.getElementById('tableSection').style.display = 'block';
+
+      renderTable();
+      renderPulseNav();
+      initColResize();
+    } catch (e) {
+      showError(`<strong>Fetch failed:</strong> ${e.message}<br/>Make sure your CORS extension is <strong>enabled</strong> and your API key is correct.`);
+      setStatus('');
+      setProgress(0);
+      document.getElementById('progressWrap').style.display = 'none';
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Fetch IOCs';
+  }
+
+  // ── Load a specific pulse page on demand ──
+  async function loadPulsePage(pageNum) {
+    if (loadedPulsePages.has(pageNum)) {
+      currentPulsePage = pageNum;
+      setStatus(`Page ${pageNum} already loaded — showing cached IOCs.`);
+      renderPulseNav();
+      return;
+    }
+
+    const btn = document.getElementById('fetchBtn');
+    btn.disabled = true;
+    showError('');
+    setStatus(`Loading pulse page ${pageNum}…`);
+    setProgress(20);
+
+    try {
+      const { pulses, hasNext } = await fetchPulsePage(apiKey, pageNum);
+      hasNextPulsePage = hasNext || pageNum < MAX_PULSE_PAGES;
+      loadedPulsePages.add(pageNum);
+      currentPulsePage = pageNum;
+
+      setProgress(70);
+      for (const p of pulses) allIOCs.push(...extractIOCs(p));
+
+      setProgress(100);
+      setStatus(`Page ${pageNum} loaded — ${allIOCs.length.toLocaleString()} total IOCs across ${loadedPulsePages.size} page(s).`);
+
+      populateTypeFilter();
+      updateStats(null);
+      renderTable();
+      renderPulseNav();
+    } catch (e) {
+      showError(`<strong>Failed to load page ${pageNum}:</strong> ${e.message}`);
+      setStatus('');
+      setProgress(0);
+      document.getElementById('progressWrap').style.display = 'none';
+    }
+
+    btn.disabled = false;
+  }
+
+  // ── OTX API: single pulse page ──
+  async function fetchPulsePage(key, pageNum) {
+    const offset = (pageNum - 1) * 50;
+    const url = `https://otx.alienvault.com/api/v1/pulses/subscribed?limit=50&page=${pageNum}`;
+    const res = await fetch(url, {
+      headers: { 'X-OTX-API-KEY': key, 'Accept': 'application/json' }
+    });
+    if (!res.ok) throw new Error(`OTX returned HTTP ${res.status} — check API key.`);
+    const data = await res.json();
+    return { pulses: data.results || [], hasNext: !!data.next };
+  }
+
+  function extractIOCs(pulse) {
+    const pulseUrl = pulse.id ? `https://otx.alienvault.com/pulse/${pulse.id}` : '';
+    return (pulse.indicators || []).map(ind => ({
+      value: ind.indicator || '',
+      type: (ind.type || '').toUpperCase(),
+      pulse: pulse.name || '',
+      pulse_id: pulse.id || '',
+      pulse_url: pulseUrl,
+      author: (pulse.author || {}).username || '',
+      tlp: (pulse.tlp || 'white').toLowerCase(),
+      tags: (pulse.tags || []).join(', '),
+      created: ind.created || pulse.created || '',
+      description: pulse.description || ''
+    }));
+  }
+
+  // ── Pulse page nav bar (1–10) ──
+  function renderPulseNav() {
+    const nav = document.getElementById('pulseNav');
+    if (!nav) return;
+    let html = '<span class="pnav-label">Pulse Pages</span><div class="pnav-btns">';
+    for (let p = 1; p <= MAX_PULSE_PAGES; p++) {
+      const loaded = loadedPulsePages.has(p);
+      const active = p === currentPulsePage;
+      const cls = active ? 'pnav-btn active' : loaded ? 'pnav-btn loaded' : 'pnav-btn';
+      const title = loaded ? `Page ${p} (cached)` : `Load pulse page ${p}`;
+      html += `<button class="${cls}" onclick="loadPulsePage(${p})" title="${title}">${p}${loaded && !active ? '<span class="loaded-dot"></span>' : ''}</button>`;
+    }
+    html += '</div><span class="pnav-hint">Each page = 50 pulses from OTX. Loaded pages are cached.</span>';
+    nav.innerHTML = html;
+    nav.style.display = 'flex';
+  }
+
+  function populateTypeFilter() {
+    const types = [...new Set(allIOCs.map(i => i.type).filter(Boolean))].sort();
+    const sel = document.getElementById('typeFilter');
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">All Types</option>';
+    types.forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; sel.appendChild(o); });
+    if (cur) sel.value = cur;
+  }
+
+  function updateStats(pulseCount) {
+    document.getElementById('statTotal').textContent = allIOCs.length.toLocaleString();
+    if (pulseCount !== null) document.getElementById('statPulses').textContent = pulseCount;
+    document.getElementById('statTypes').textContent = new Set(allIOCs.map(i => i.type)).size;
+    document.getElementById('statAuthors').textContent = new Set(allIOCs.map(i => i.author)).size;
+  }
+
+  function renderTable() {
+    const typeF = document.getElementById('typeFilter').value;
+    const tlpF = document.getElementById('tlpFilter').value;
+    const search = document.getElementById('searchBox').value.toLowerCase();
+
+    filteredIOCs = allIOCs.filter(i => {
+      if (typeF && i.type !== typeF) return false;
+      if (tlpF && i.tlp !== tlpF) return false;
+      if (search && !i.value.toLowerCase().includes(search) && !i.pulse.toLowerCase().includes(search)) return false;
+      return true;
+    });
+
+    const total = filteredIOCs.length;
+    const totalPages = Math.max(1, Math.ceil(total / TABLE_PAGE_SIZE));
+    if (currentTablePage > totalPages) currentTablePage = 1;
+    const start = (currentTablePage - 1) * TABLE_PAGE_SIZE;
+    const page = filteredIOCs.slice(start, start + TABLE_PAGE_SIZE);
+
+    const tbody = document.getElementById('tableBody');
+    const empty = document.getElementById('emptyState');
+    const pag = document.getElementById('pagination');
+
+    if (page.length === 0) {
+      tbody.innerHTML = '';
+      empty.style.display = 'block';
+      pag.style.display = 'none';
+      return;
+    }
+
+    empty.style.display = 'none';
+    tbody.innerHTML = page.map(i => `
+      <tr>
+        <td style="color:var(--text3);font-size:11px;white-space:nowrap">${i.created ? i.created.slice(0,10) : '—'}</td>
+        <td class="ioc-val" title="${esc(i.value)}">${esc(i.value)}</td>
+        <td><span class="badge ${badgeClass(i.type)}">${esc(i.type) || '—'}</span></td>
+        <td title="${esc(i.pulse)}">${esc(i.pulse)}</td>
+        <td style="color:var(--text3)">${esc(i.author)}</td>
+        <td><span class="tlp tlp-${i.tlp || 'white'}">${i.tlp ? 'TLP:'+i.tlp.toUpperCase() : 'WHITE'}</span></td>
+        <td style="color:var(--text3);font-size:11px" title="${esc(i.tags)}">${esc(i.tags.slice(0,35))}${i.tags.length > 35 ? '…' : ''}</td>
+        <td style="font-size:11px">${i.pulse_url ? `<a href="${esc(i.pulse_url)}" target="_blank" style="color:var(--accent);text-decoration:none;border-bottom:1px solid rgba(0,229,160,0.3)">↗ OTX Pulse</a>` : '—'}</td>
+      </tr>`).join('');
+
+    pag.style.display = 'flex';
+    const s = start + 1, e = Math.min(start + TABLE_PAGE_SIZE, total);
+    let btns = '';
+    const lo = Math.max(1, currentTablePage - 2), hi = Math.min(totalPages, currentTablePage + 2);
+    if (lo > 1) btns += `<button onclick="goTablePage(1)">1</button>${lo > 2 ? '<button disabled style="border:none;color:var(--text3)">…</button>' : ''}`;
+    for (let p = lo; p <= hi; p++) btns += `<button class="${p === currentTablePage ? 'active' : ''}" onclick="goTablePage(${p})">${p}</button>`;
+    if (hi < totalPages) btns += `${hi < totalPages - 1 ? '<button disabled style="border:none;color:var(--text3)">…</button>' : ''}<button onclick="goTablePage(${totalPages})">${totalPages}</button>`;
+
+    pag.innerHTML = `<span>${s}–${e} of ${total.toLocaleString()} IOCs</span><div class="page-btns">${btns}</div>`;
+  }
+
+  function goTablePage(p) { currentTablePage = p; renderTable(); document.getElementById('tableSection').scrollIntoView({behavior:'smooth', block:'start'}); }
+
+  function badgeClass(t) {
+    if (!t) return 'b-def';
+    if (/IPv|^IP/.test(t)) return 'b-ip';
+    if (/DOMAIN|HOSTNAME/.test(t)) return 'b-domain';
+    if (/URL/.test(t)) return 'b-url';
+    if (/FILE|HASH|MD5|SHA/.test(t)) return 'b-hash';
+    if (/EMAIL/.test(t)) return 'b-email';
+    return 'b-def';
+  }
+
+  function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function exportCSV() {
+    const h = ['Date','IOC Value','Type','Pulse','Pulse URL','Author','TLP','Tags','Created','Description'];
+    const rows = filteredIOCs.map(i => [i.created ? i.created.slice(0,10) : '',i.value,i.type,i.pulse,i.pulse_url,i.author,i.tlp,i.tags,i.created,i.description].map(v => `"${String(v||'').replace(/"/g,'""')}"`).join(','));
+    dl(`AlienVault_IOCs_${ts()}.csv`, [h.join(','), ...rows].join('\n'), 'text/csv');
+  }
+
+  function exportJSON() {
+    dl(`AlienVault_IOCs_${ts()}.json`, JSON.stringify(filteredIOCs, null, 2), 'application/json');
+  }
+
+  function dl(name, content, type) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([content], {type}));
+    a.download = name; a.click();
+  }
+
+  function ts() { return new Date().toISOString().slice(0,19).replace(/[:T]/g,'-'); }
+
+  // ── Column resizing ──
+  function initColResize() {
+    const table = document.getElementById('iocTable');
+    if (!table) return;
+    const ths = table.querySelectorAll('thead th');
+    ths.forEach(th => {
+      const resizer = th.querySelector('.col-resizer');
+      if (!resizer) return;
+      // avoid double-binding
+      resizer.onmousedown = null;
+      let startX, startW;
+      resizer.addEventListener('mousedown', e => {
+        startX = e.pageX;
+        startW = th.offsetWidth;
+        resizer.classList.add('dragging');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        const onMove = e => {
+          const newW = Math.max(60, startW + (e.pageX - startX));
+          th.style.width = newW + 'px';
+          th.style.minWidth = newW + 'px';
+        };
+        const onUp = () => {
+          resizer.classList.remove('dragging');
+          document.body.style.cursor = '';
+          document.body.style.userSelect = '';
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+        e.preventDefault();
+      });
+    });
+  }
+</script>
+</body>
+</html>

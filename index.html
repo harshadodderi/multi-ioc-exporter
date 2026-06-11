@@ -1,0 +1,2201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Multi-Source IOC Exporter — AlienVault OTX + abuse.ch</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Syne:wght@400;600;700;800&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+<style>
+/* ══════════════════════════════════════════════════ */
+/* SHARED BASE + TAB BAR                             */
+/* ══════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0a0c0f;
+  --bg2: #0f1215;
+  --bg3: #141820;
+  --bg4: #1a2030;
+  --border: rgba(255,255,255,0.06);
+  --border2: rgba(255,255,255,0.12);
+  --text: #e8eaf0;
+  --text2: #8a91a0;
+  --text3: #555d6e;
+  --mono: 'JetBrains Mono', monospace;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Master Tab Bar ── */
+.master-header {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 2rem 2rem 0;
+  position: relative;
+  z-index: 1;
+}
+
+.master-title {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(22px, 4vw, 32px);
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 1.25rem;
+  letter-spacing: -0.5px;
+}
+
+.master-title .accent-green { color: #00e5a0; }
+.master-title .accent-cyan { color: #00d4ff; }
+
+.tab-bar {
+  display: flex;
+  gap: 4px;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 0;
+}
+
+.tab-btn {
+  padding: 12px 24px;
+  border: none;
+  background: transparent;
+  color: var(--text3);
+  font-family: 'Syne', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: 0.3px;
+}
+
+.tab-btn:hover { color: var(--text2); }
+
+.tab-btn.active-av {
+  color: #00e5a0;
+  border-bottom-color: #00e5a0;
+}
+
+.tab-btn.active-ab {
+  color: #00d4ff;
+  border-bottom-color: #00d4ff;
+}
+
+.tab-btn .tab-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+}
+
+.tab-btn .tab-dot.dot-av { background: #00e5a0; }
+.tab-btn .tab-dot.dot-ab { background: #00d4ff; }
+
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+
+/* ══════════════════════════════════════════════════ */
+/* ALIENVAULT OTX TAB — original CSS (namespaced)    */
+/* ══════════════════════════════════════════════════ */
+#tab-alienvault {
+  --accent: #00e5a0;
+  --accent2: #00b87a;
+  --accent-dim: rgba(0,229,160,0.08);
+  --accent-glow: rgba(0,229,160,0.15);
+  --red: #ff4d6a;
+  --red-dim: rgba(255,77,106,0.1);
+  --amber: #f5a623;
+  --amber-dim: rgba(245,166,35,0.1);
+  --blue: #4d9fff;
+  --blue-dim: rgba(77,159,255,0.1);
+  --purple: #a78bfa;
+  --purple-dim: rgba(167,139,250,0.1);
+  --sans: 'Syne', sans-serif;
+}
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0c0f;
+    --bg2: #0f1215;
+    --bg3: #141820;
+    --bg4: #1a2030;
+    --border: rgba(255,255,255,0.06);
+    --border2: rgba(255,255,255,0.12);
+    --accent: #00e5a0;
+    --accent2: #00b87a;
+    --accent-dim: rgba(0,229,160,0.08);
+    --accent-glow: rgba(0,229,160,0.15);
+    --text: #e8eaf0;
+    --text2: #8a91a0;
+    --text3: #555d6e;
+    --red: #ff4d6a;
+    --red-dim: rgba(255,77,106,0.1);
+    --amber: #f5a623;
+    --amber-dim: rgba(245,166,35,0.1);
+    --blue: #4d9fff;
+    --blue-dim: rgba(77,159,255,0.1);
+    --purple: #a78bfa;
+    --purple-dim: rgba(167,139,250,0.1);
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid bg */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,160,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,160,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 0 2rem 4rem;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── Header ── */
+  header {
+    padding: 3rem 0 2.5rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2.5rem;
+  }
+
+  .header-top {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 8px;
+  }
+
+  .logo-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 12px var(--accent);
+    animation: blink 2s ease-in-out infinite;
+  }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .header-tag {
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+
+  h1 {
+    font-family: var(--sans);
+    font-size: clamp(26px, 4vw, 38px);
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: -0.5px;
+    line-height: 1.1;
+  }
+
+  h1 span { color: var(--accent); }
+
+  .subtitle {
+    margin-top: 10px;
+    font-size: 13px;
+    color: var(--text2);
+    line-height: 1.6;
+  }
+
+  /* ── Section titles ── */
+  .section-label {
+    font-size: 10px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 12px;
+    font-weight: 500;
+  }
+
+  /* ── CORS Banner ── */
+  .cors-banner {
+    background: var(--amber-dim);
+    border: 1px solid rgba(245,166,35,0.2);
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 2rem;
+    animation: fadeDown 0.4s ease;
+  }
+
+  @keyframes fadeDown { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+
+  .cors-banner-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .cors-banner-header .warn-icon {
+    width: 20px; height: 20px;
+    background: var(--amber);
+    border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+    color: #0a0c0f;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .cors-banner-header h3 {
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--amber);
+    flex: 1;
+  }
+
+  .cors-toggle {
+    font-size: 11px;
+    color: var(--text3);
+    letter-spacing: 1px;
+  }
+
+  .cors-body { display: block; }
+  .cors-body.hidden { display: none; }
+
+  .cors-intro {
+    font-size: 12px;
+    color: var(--text2);
+    line-height: 1.7;
+    margin-bottom: 16px;
+  }
+
+  .cors-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .cors-step {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    background: rgba(0,0,0,0.2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+
+  .step-num {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: rgba(245,166,35,0.15);
+    border: 1px solid rgba(245,166,35,0.3);
+    color: var(--amber);
+    font-size: 11px;
+    font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .step-content { flex: 1; }
+
+  .step-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 4px;
+    font-family: var(--sans);
+  }
+
+  .step-desc {
+    font-size: 11px;
+    color: var(--text2);
+    line-height: 1.6;
+  }
+
+  .step-desc a {
+    color: var(--accent);
+    text-decoration: none;
+    border-bottom: 1px solid rgba(0,229,160,0.3);
+  }
+
+  .step-desc a:hover { border-bottom-color: var(--accent); }
+
+  .ext-options {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+  }
+
+  .ext-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.15s;
+  }
+
+  .ext-pill.chrome {
+    background: rgba(77,159,255,0.1);
+    border: 1px solid rgba(77,159,255,0.25);
+    color: var(--blue);
+  }
+  .ext-pill.firefox {
+    background: rgba(245,166,35,0.1);
+    border: 1px solid rgba(245,166,35,0.25);
+    color: var(--amber);
+  }
+  .ext-pill:hover { filter: brightness(1.2); }
+
+  .warning-note {
+    margin-top: 12px;
+    padding: 10px 14px;
+    background: rgba(255,77,106,0.06);
+    border: 1px solid rgba(255,77,106,0.15);
+    border-radius: 6px;
+    font-size: 11px;
+    color: var(--red);
+    line-height: 1.6;
+  }
+
+  /* ── API Key Card ── */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .card:hover { border-color: var(--border2); }
+
+  .key-row {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .key-input-wrap {
+    position: relative;
+    flex: 1;
+  }
+
+  .key-input-wrap input {
+    width: 100%;
+    height: 44px;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 0 14px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+    letter-spacing: 1px;
+  }
+
+  .key-input-wrap input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+  .key-input-wrap input::placeholder { color: var(--text3); letter-spacing: 0; }
+
+  .btn {
+    height: 44px;
+    padding: 0 18px;
+    border-radius: 8px;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--text2);
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+    letter-spacing: 0.5px;
+  }
+
+  .btn:hover { border-color: var(--border2); background: var(--bg3); color: var(--text); }
+  .btn:active { transform: scale(0.97); }
+
+  .btn-fetch {
+    background: var(--accent);
+    color: #0a0c0f;
+    border-color: var(--accent);
+    font-weight: 600;
+    padding: 0 26px;
+    font-size: 13px;
+  }
+
+  .btn-fetch:hover { background: #00ffb3; border-color: #00ffb3; color: #0a0c0f; }
+  .btn-fetch:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+  /* ── Progress ── */
+  .progress-wrap {
+    height: 2px;
+    background: var(--border);
+    border-radius: 1px;
+    margin: 1rem 0;
+    overflow: hidden;
+    display: none;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 1px;
+    transition: width 0.35s ease;
+    box-shadow: 0 0 8px var(--accent);
+  }
+
+  /* ── Error ── */
+  .error-box {
+    background: var(--red-dim);
+    border: 1px solid rgba(255,77,106,0.25);
+    border-radius: 8px;
+    padding: 12px 16px;
+    color: var(--red);
+    font-size: 12px;
+    margin-bottom: 1.25rem;
+    line-height: 1.6;
+    display: none;
+  }
+
+  /* ── Stats ── */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0,1fr));
+    gap: 10px;
+    margin-bottom: 1.5rem;
+    display: none;
+  }
+
+  .stat {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent);
+    opacity: 0.4;
+  }
+
+  .stat-label {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 8px;
+  }
+
+  .stat-value {
+    font-family: var(--sans);
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  /* ── Controls ── */
+  .controls {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    align-items: center;
+    display: none;
+  }
+
+  .controls select,
+  .controls input[type=text] {
+    height: 36px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 0 12px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .controls select:focus,
+  .controls input[type=text]:focus { border-color: var(--accent); }
+
+  .controls input[type=text] { min-width: 200px; flex: 1; }
+
+  .controls .btn { height: 36px; font-size: 12px; }
+  .controls .btn-export {
+    background: var(--accent-dim);
+    border-color: rgba(0,229,160,0.25);
+    color: var(--accent);
+  }
+  .controls .btn-export:hover { background: rgba(0,229,160,0.15); }
+
+  /* ── Table ── */
+  .table-section { display: none; }
+
+  .table-wrap {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow-x: auto;
+    overflow-y: visible;
+  }
+
+  table {
+    width: max-content;
+    min-width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    table-layout: fixed;
+  }
+
+  thead th {
+    background: var(--bg3);
+    color: var(--text3);
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    font-weight: 500;
+    padding: 12px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    position: relative;
+    user-select: none;
+    overflow: hidden;
+  }
+
+  /* Resize handle */
+  thead th .col-resizer {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 5px;
+    cursor: col-resize;
+    background: transparent;
+    z-index: 10;
+    transition: background 0.15s;
+  }
+
+  thead th .col-resizer:hover,
+  thead th .col-resizer.dragging {
+    background: var(--accent);
+    opacity: 0.6;
+  }
+
+  tbody td {
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--border);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text2);
+    vertical-align: middle;
+  }
+
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: var(--bg3); color: var(--text); }
+
+  td.ioc-val {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text);
+  }
+
+  .col-hint {
+    font-size: 10px;
+    color: var(--text3);
+    margin-bottom: 6px;
+    letter-spacing: 0.5px;
+  }
+  .col-hint span { color: var(--accent); }
+
+  /* ── Badges ── */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+
+  .b-ip    { background: rgba(77,159,255,0.12); color: #7db8ff; border: 1px solid rgba(77,159,255,0.2); }
+  .b-domain{ background: rgba(0,229,160,0.1);  color: var(--accent); border: 1px solid rgba(0,229,160,0.2); }
+  .b-url   { background: rgba(245,166,35,0.1); color: var(--amber); border: 1px solid rgba(245,166,35,0.2); }
+  .b-hash  { background: rgba(167,139,250,0.1);color: var(--purple); border: 1px solid rgba(167,139,250,0.2); }
+  .b-email { background: var(--red-dim); color: var(--red); border: 1px solid rgba(255,77,106,0.2); }
+  .b-def   { background: var(--bg4); color: var(--text3); border: 1px solid var(--border); }
+
+  .tlp {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .tlp-white { background: rgba(255,255,255,0.06); color: #888; }
+  .tlp-green { background: rgba(0,229,160,0.1); color: var(--accent); }
+  .tlp-amber { background: rgba(245,166,35,0.1); color: var(--amber); }
+  .tlp-red   { background: var(--red-dim); color: var(--red); }
+
+  /* ── Pagination ── */
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text3);
+  }
+
+  .page-btns { display: flex; gap: 4px; }
+
+  .page-btns button {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text2);
+    font-size: 11px;
+    font-family: var(--mono);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .page-btns button:hover { background: var(--bg3); color: var(--text); }
+  .page-btns button.active { background: var(--accent); color: #0a0c0f; border-color: var(--accent); font-weight: 700; }
+
+  /* ── Empty state ── */
+  .empty-state {
+    padding: 3rem;
+    text-align: center;
+    color: var(--text3);
+    font-size: 12px;
+    display: none;
+  }
+
+  /* ── Fetch status ── */
+  .fetch-status {
+    font-size: 11px;
+    color: var(--text3);
+    margin-top: 8px;
+    min-height: 16px;
+  }
+
+  .fetch-status .dot { color: var(--accent); }
+
+  /* ── Pulse Page Nav ── */
+  .pulse-nav {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .pnav-label {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text3);
+    white-space: nowrap;
+    font-weight: 500;
+  }
+
+  .pnav-btns {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+  }
+
+  .pnav-btn {
+    position: relative;
+    width: 34px;
+    height: 34px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--bg3);
+    color: var(--text3);
+    font-size: 12px;
+    font-family: var(--mono);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .pnav-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+  .pnav-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #0a0c0f;
+    font-weight: 700;
+    box-shadow: 0 0 10px var(--accent-glow);
+  }
+
+  .pnav-btn.loaded {
+    border-color: rgba(0,229,160,0.3);
+    color: var(--accent);
+    background: var(--accent-dim);
+  }
+
+  .loaded-dot {
+    position: absolute;
+    top: 4px; right: 4px;
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  .pnav-hint {
+    font-size: 10px;
+    color: var(--text3);
+    flex: 1;
+    min-width: 140px;
+  }
+
+  @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+  .animate-in { animation: fadeIn 0.3s ease forwards; }
+
+
+/* ══════════════════════════════════════════════════ */
+/* ABUSE.CH TAB — original CSS (namespaced)          */
+/* ══════════════════════════════════════════════════ */
+#tab-abusech {
+  --cyan: #00d4ff;
+  --cyan-dim: rgba(0,212,255,0.07);
+  --green: #00e68a;
+  --green-dim: rgba(0,230,138,0.08);
+  --red: #ff4560;
+  --amber: #fbbf24;
+  --amber-dim: rgba(251,191,36,0.08);
+  --orange: #ff6b35;
+  --pink: #ec4899;
+  --teal: #14b8a6;
+  --sans: 'Outfit', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #07090d;
+  --bg2: #0c1017;
+  --bg3: #121822;
+  --bg4: #1a2233;
+  --border: rgba(255,255,255,0.06);
+  --border2: rgba(255,255,255,0.1);
+  --cyan: #00d4ff;
+  --cyan-dim: rgba(0,212,255,0.07);
+  --green: #00e68a;
+  --green-dim: rgba(0,230,138,0.08);
+  --red: #ff4560;
+  --amber: #fbbf24;
+  --amber-dim: rgba(251,191,36,0.08);
+  --orange: #ff6b35;
+  --pink: #ec4899;
+  --teal: #14b8a6;
+  --text: #e0e6f0;
+  --text2: #7a8499;
+  --text3: #434d63;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Outfit', sans-serif;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+  min-height: 100vh;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,212,255,0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,0.02) 1px, transparent 1px);
+  background-size: 44px 44px;
+  pointer-events: none;
+}
+
+.container {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0 1.5rem 4rem;
+  position: relative;
+  z-index: 1;
+}
+
+/* Header */
+header {
+  padding: 3rem 0 2rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2rem;
+}
+
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.dot-pulse {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 0 8px var(--cyan);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+.eyebrow-label {
+  font-size: 10px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--cyan);
+  font-weight: 500;
+}
+
+h1 {
+  font-family: var(--sans);
+  font-size: clamp(26px, 5vw, 40px);
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  line-height: 1.1;
+}
+
+h1 .hi { color: var(--cyan); }
+
+.subtitle {
+  margin-top: 10px;
+  font-size: 12.5px;
+  color: var(--text2);
+  line-height: 1.7;
+}
+
+/* Key input */
+.key-section {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.key-section:hover { border-color: var(--border2); }
+
+.section-label {
+  font-size: 10px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--text3);
+  margin-bottom: 12px;
+  font-weight: 500;
+}
+
+.key-row {
+  display: flex;
+  gap: 8px;
+}
+
+.key-row input {
+  flex: 1;
+  height: 44px;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 0 14px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  outline: none;
+  letter-spacing: 1px;
+  transition: border-color 0.2s;
+}
+
+.key-row input:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px var(--cyan-dim); }
+.key-row input::placeholder { color: var(--text3); letter-spacing: 0; }
+
+.btn {
+  height: 44px;
+  padding: 0 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--text2);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+
+.btn:hover { background: var(--bg3); color: var(--text); border-color: var(--border2); }
+
+.key-hint {
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--text3);
+  line-height: 1.6;
+}
+
+.key-hint a { color: var(--cyan); text-decoration: none; border-bottom: 1px solid rgba(0,212,255,0.3); }
+
+/* Provider select */
+.providers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin-bottom: 1.5rem;
+}
+
+.prov-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem 1.2rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+}
+
+.prov-card:hover { border-color: var(--border2); }
+
+.prov-card.selected {
+  border-color: var(--accent, var(--cyan));
+  background: var(--bg3);
+}
+
+.prov-card.selected::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--accent, var(--cyan));
+}
+
+.prov-name {
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent, var(--cyan));
+  margin-bottom: 4px;
+}
+
+.prov-desc {
+  font-size: 10.5px;
+  color: var(--text3);
+  line-height: 1.5;
+}
+
+.prov-check {
+  position: absolute;
+  top: 10px; right: 10px;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--border2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px;
+  transition: all 0.15s;
+}
+
+.prov-card.selected .prov-check {
+  background: var(--accent, var(--cyan));
+  border-color: var(--accent, var(--cyan));
+  color: var(--bg);
+}
+
+/* Generate button */
+.gen-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 1.5rem;
+  align-items: center;
+}
+
+.btn-gen {
+  height: 48px;
+  padding: 0 28px;
+  border-radius: 10px;
+  border: none;
+  background: var(--cyan);
+  color: var(--bg);
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.3px;
+}
+
+.btn-gen:hover { background: #33dcff; }
+
+/* Output box */
+.output-section {
+  display: none;
+  margin-bottom: 1.5rem;
+  animation: fadeUp 0.3s ease;
+}
+
+@keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+.output-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.output-title {
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.output-title .num {
+  background: var(--cyan-dim);
+  border: 1px solid rgba(0,212,255,0.2);
+  color: var(--cyan);
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-family: var(--mono);
+}
+
+.btn-copy {
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 6px;
+  border: 1px solid rgba(0,230,138,0.25);
+  background: var(--green-dim);
+  color: var(--green);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-copy:hover { background: rgba(0,230,138,0.15); }
+.btn-copy.copied { background: var(--green); color: var(--bg); border-color: var(--green); }
+
+.code-box {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.25rem;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--green);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  position: relative;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.code-box .comment { color: var(--text3); }
+.code-box .highlight { color: var(--cyan); }
+.code-box .string { color: var(--amber); }
+
+/* Steps */
+.steps {
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 1.5rem;
+  animation: fadeUp 0.3s ease;
+}
+
+.step {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+
+.step-n {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: var(--cyan-dim);
+  border: 1px solid rgba(0,212,255,0.2);
+  color: var(--cyan);
+  font-size: 11px;
+  font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+.step-text {
+  font-size: 12px;
+  color: var(--text2);
+  line-height: 1.6;
+}
+
+.step-text strong { color: var(--text); }
+.step-text code { color: var(--cyan); font-size: 11px; }
+
+/* Info note */
+.info-note {
+  background: var(--amber-dim);
+  border: 1px solid rgba(251,191,36,0.18);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  font-size: 11px;
+  color: var(--amber);
+  line-height: 1.7;
+  margin-bottom: 1.5rem;
+}
+
+.info-note strong { color: #fcd34d; }
+
+/* Provider colors */
+.mb { --accent: #ff6b35; }
+.uh { --accent: #ec4899; }
+.tf { --accent: #14b8a6; }
+.all { --accent: #00d4ff; }
+
+@media (max-width: 500px) {
+  .providers { grid-template-columns: 1fr; }
+}
+
+/* ══════════════════════════════════════════════════ */
+/* SECURITY MODALS                                    */
+/* ══════════════════════════════════════════════════ */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+  z-index: 9999;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-overlay.active { display: flex; }
+
+.modal-box {
+  background: #0f1318;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 14px;
+  padding: 2rem;
+  max-width: 520px;
+  width: 90%;
+  max-height: 85vh;
+  overflow-y: auto;
+  animation: fadeUp 0.25s ease;
+}
+
+@keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+
+.modal-icon {
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  margin-bottom: 14px;
+}
+
+.modal-icon.warn { background: rgba(245,166,35,0.15); color: #f5a623; }
+.modal-icon.ok { background: rgba(0,229,160,0.12); color: #00e5a0; }
+
+.modal-title {
+  font-family: 'Syne', 'Outfit', sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  color: #e8eaf0;
+  margin-bottom: 12px;
+}
+
+.modal-checklist {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.modal-checklist li {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 12px;
+  color: #8a91a0;
+  line-height: 1.6;
+}
+
+.modal-checklist .chk {
+  width: 18px; height: 18px;
+  border-radius: 4px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.04);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px;
+  color: #00e5a0;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.modal-checklist li strong { color: #e8eaf0; }
+
+.modal-btns {
+  display: flex;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.modal-btn {
+  flex: 1;
+  height: 40px;
+  border-radius: 8px;
+  border: none;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.modal-btn.primary {
+  background: #00e5a0;
+  color: #0a0c0f;
+}
+
+.modal-btn.primary:hover { background: #00ffb3; }
+
+.modal-btn.primary-cyan {
+  background: #00d4ff;
+  color: #0a0c0f;
+}
+
+.modal-btn.primary-cyan:hover { background: #33dcff; }
+
+.modal-btn.secondary {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.12);
+  color: #8a91a0;
+}
+
+.modal-btn.secondary:hover { background: rgba(255,255,255,0.04); color: #e8eaf0; }
+
+.modal-note {
+  font-size: 10px;
+  color: #555d6e;
+  margin-top: 12px;
+  line-height: 1.6;
+}
+
+/* abuse.ch security reminder */
+.security-reminder {
+  display: none;
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: rgba(245,166,35,0.06);
+  border: 1px solid rgba(245,166,35,0.15);
+  border-radius: 8px;
+  font-size: 10.5px;
+  color: #f5a623;
+  line-height: 1.65;
+  animation: fadeUp 0.3s ease;
+}
+
+.security-reminder strong { color: #fcd34d; }
+.security-reminder code { color: #00d4ff; font-size: 10px; }
+
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- MASTER HEADER + TAB BAR                       -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="master-header">
+  <div class="master-title">
+    Multi-Source <span class="accent-green">IOC</span> <span class="accent-cyan">Exporter</span>
+  </div>
+  <div class="tab-bar">
+    <button class="tab-btn active-av" id="tabBtnAV" onclick="switchTab('alienvault')">
+      <span class="tab-dot dot-av"></span>
+      AlienVault OTX
+    </button>
+    <button class="tab-btn" id="tabBtnAB" onclick="switchTab('abusech')">
+      <span class="tab-dot dot-ab"></span>
+      abuse.ch (PowerShell)
+    </button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- TAB 1: ALIENVAULT OTX (unchanged)             -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="tab-pane active" id="tab-alienvault">
+
+<div class="container">
+
+  <!-- Header -->
+  <header>
+    <div class="header-top">
+      <div class="logo-dot"></div>
+      <span class="header-tag">Threat Intelligence</span>
+    </div>
+    <h1>AlienVault OTX<br /><span>IOC Exporter</span></h1>
+    <p class="subtitle">Fetch your subscribed OTX pulses one page at a time (50 per page, up to 10 pages). Load more on demand, filter by type or TLP, and export IOCs with pulse links.</p>
+  </header>
+
+  <!-- CORS Setup Banner (shown if CORS check fails or pending) -->
+  <div class="cors-banner" id="corsBannerWarn">
+    <div class="cors-banner-header" onclick="toggleCors()">
+      <div class="warn-icon">!</div>
+      <h3>CORS Setup Required — Read Before Fetching</h3>
+      <span class="cors-toggle" id="corsToggleLabel">▲ COLLAPSE</span>
+    </div>
+    <div class="cors-body" id="corsBody">
+      <p class="cors-intro">
+        This app runs directly in your browser. AlienVault OTX blocks cross-origin requests from local files by default (CORS policy). You need a browser extension to inject the missing headers — takes 60 seconds.
+      </p>
+      <div class="cors-steps">
+        <div class="cors-step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <div class="step-title">Install a CORS-unblocking extension</div>
+            <div class="step-desc">
+              Do <strong>not</strong> use FoxyProxy — that's a proxy router, not a CORS fix. Install one of these instead:
+              <div class="ext-options" style="margin-top:8px">
+                <a class="ext-pill chrome" href="https://chrome.google.com/webstore/detail/cors-unblock/lfhmikememgdcahcdlaciloancbhjino" target="_blank">&#x25A0; CORS Unblock (Chrome)</a>
+                <a class="ext-pill chrome" href="https://chrome.google.com/webstore/detail/allow-cors-access-control/lhobafahddgcelffkeicbaginigeejlf" target="_blank">&#x25A0; Allow CORS (Chrome)</a>
+                <a class="ext-pill firefox" href="https://addons.mozilla.org/en-US/firefox/addon/cors-everywhere/" target="_blank">&#x25A0; CORS Everywhere (Firefox)</a>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="cors-step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <div class="step-title">Enable the extension</div>
+            <div class="step-desc">Click the extension icon in your browser toolbar and toggle it <strong style="color:var(--accent)">ON</strong>. The extension intercepts responses from OTX and injects <code style="color:var(--accent);font-size:11px">Access-Control-Allow-Origin: *</code> so your browser accepts them.</div>
+          </div>
+        </div>
+        <div class="cors-step">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <div class="step-title">Paste your OTX API key below and fetch</div>
+            <div class="step-desc">Get your key from <a href="https://otx.alienvault.com/api" target="_blank">otx.alienvault.com/api</a> → "Your API Key". Paste it in the field below and click Fetch IOCs.</div>
+          </div>
+        </div>
+        <div class="cors-step">
+          <div class="step-num">4</div>
+          <div class="step-content">
+            <div class="step-title">Turn the extension OFF after you're done</div>
+            <div class="step-desc">These extensions disable CORS protection globally. Only keep it on while using this tool — toggle it off before normal browsing.</div>
+          </div>
+        </div>
+      </div>
+      <div class="warning-note">
+        ⚠ Security note: CORS extensions weaken your browser's same-origin protection. Use them only on trusted pages and disable immediately after use.
+      </div>
+    </div>
+  </div>
+
+  <!-- CORS OK Banner (shown if auto-detect passes) -->
+  <div id="corsBannerOk" style="display:none;background:rgba(0,229,160,0.06);border:1px solid rgba(0,229,160,0.2);border-radius:12px;padding:1rem 1.5rem;margin-bottom:2rem;animation:fadeDown 0.4s ease;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="width:20px;height:20px;background:var(--accent);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#0a0c0f;font-weight:700;flex-shrink:0;">✓</div>
+      <h3 style="font-family:var(--sans);font-size:14px;font-weight:600;color:var(--accent);flex:1;">CORS is working — no extension needed</h3>
+    </div>
+    <p style="font-size:11px;color:var(--text2);margin-top:8px;line-height:1.6;">
+      Auto-detected that OTX API is reachable from this origin. You can fetch IOCs directly without a CORS extension. Just paste your API key and click Fetch IOCs.
+    </p>
+  </div>
+
+  <!-- API Key Card -->
+  <div class="card">
+    <div class="section-label">OTX API Key</div>
+    <div class="key-row">
+      <div class="key-input-wrap">
+        <input type="password" id="apiKey" placeholder="Paste your AlienVault OTX API key here..." autocomplete="off" />
+      </div>
+      <button class="btn" id="toggleBtn" onclick="toggleKey()">Show</button>
+      <button class="btn btn-fetch" id="fetchBtn" onclick="startFetch()">Fetch IOCs</button>
+    </div>
+    <div class="fetch-status" id="fetchStatus"></div>
+  </div>
+
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-fill" id="progressFill" style="width:0%"></div>
+  </div>
+
+  <div class="error-box" id="errorBox"></div>
+
+  <!-- Stats -->
+  <div class="stats" id="statsRow">
+    <div class="stat"><div class="stat-label">Total IOCs</div><div class="stat-value" id="statTotal">0</div></div>
+    <div class="stat"><div class="stat-label">Pulses</div><div class="stat-value" id="statPulses">0</div></div>
+    <div class="stat"><div class="stat-label">IOC Types</div><div class="stat-value" id="statTypes">0</div></div>
+    <div class="stat"><div class="stat-label">Authors</div><div class="stat-value" id="statAuthors">0</div></div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls" id="controlsRow">
+    <select id="typeFilter" onchange="renderTable()">
+      <option value="">All Types</option>
+    </select>
+    <select id="tlpFilter" onchange="renderTable()">
+      <option value="">All TLP</option>
+      <option value="white">TLP:WHITE</option>
+      <option value="green">TLP:GREEN</option>
+      <option value="amber">TLP:AMBER</option>
+      <option value="red">TLP:RED</option>
+    </select>
+    <input type="text" id="searchBox" placeholder="Search IOC value or pulse name..." oninput="renderTable()" />
+    <button class="btn btn-export" onclick="exportCSV()">Export CSV</button>
+    <button class="btn btn-export" onclick="exportJSON()">Export JSON</button>
+  </div>
+
+  <!-- Pulse Page Nav -->
+  <div class="pulse-nav" id="pulseNav" style="display:none"></div>
+
+  <!-- Table -->
+  <div class="table-section" id="tableSection">
+    <div class="col-hint">⟺ <span>Drag column borders</span> to resize — scroll horizontally for more columns</div>
+    <div class="table-wrap">
+      <table id="iocTable">
+        <thead>
+          <tr>
+            <th style="min-width:100px;width:110px">Date<div class="col-resizer"></div></th>
+            <th style="min-width:160px;width:260px">IOC Value<div class="col-resizer"></div></th>
+            <th style="min-width:80px;width:110px">Type<div class="col-resizer"></div></th>
+            <th style="min-width:120px;width:200px">Pulse<div class="col-resizer"></div></th>
+            <th style="min-width:80px;width:110px">Author<div class="col-resizer"></div></th>
+            <th style="min-width:70px;width:90px">TLP<div class="col-resizer"></div></th>
+            <th style="min-width:80px;width:120px">Tags<div class="col-resizer"></div></th>
+            <th style="min-width:90px;width:110px">Pulse Link<div class="col-resizer"></div></th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+      <div class="pagination" id="pagination" style="display:none"></div>
+    </div>
+    <div class="empty-state" id="emptyState">No IOCs match your current filter.</div>
+  </div>
+
+</div>
+
+
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- TAB 2: ABUSE.CH PowerShell Generator (unchanged) -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="tab-pane" id="tab-abusech">
+
+<div class="container">
+
+  <header>
+    <div class="eyebrow">
+      <div class="dot-pulse"></div>
+      <span class="eyebrow-label">Threat Intelligence</span>
+    </div>
+    <h1>abuse.ch <span class="hi">IOC Exporter</span></h1>
+    <p class="subtitle">
+      Generate a PowerShell one-liner to fetch IOCs from MalwareBazaar, URLhaus, and ThreatFox.
+      Paste your Auth-Key, pick providers, copy the command, run in PowerShell. No CORS, no extensions, no server.
+    </p>
+  </header>
+
+  <!-- Info -->
+  <div class="info-note">
+    <strong>How it works:</strong> This page generates a PowerShell command with your Auth-Key baked in.
+    You copy it, paste it into PowerShell, and it fetches IOCs directly from abuse.ch APIs — exporting CSV + TXT files to an <code style="color:var(--amber)">abuse_ch_iocs</code> folder.
+    Your key never leaves your machine. This page runs entirely offline.
+  </div>
+
+  <!-- Auth-Key -->
+  <div class="key-section">
+    <div class="section-label">abuse.ch Auth-Key</div>
+    <div class="key-row">
+      <input type="password" id="abApiKey" placeholder="Paste your Auth-Key from auth.abuse.ch..." autocomplete="off" />
+      <button class="btn" onclick="abToggleKey()">Show</button>
+    </div>
+    <div class="key-hint">
+      Free key from <a href="https://auth.abuse.ch/" target="_blank">auth.abuse.ch</a> — sign in, add a second login method, Save profile, generate under <em>Your API Keys</em>. One key for all three providers.
+    </div>
+  </div>
+
+  <!-- Provider select -->
+  <div class="section-label">Select Providers</div>
+  <div class="providers">
+    <div class="prov-card all selected" onclick="selectProv('all')" id="prov-all">
+      <div class="prov-check">✓</div>
+      <div class="prov-name" style="color:var(--cyan)">All Three</div>
+      <div class="prov-desc">MB + URLhaus + ThreatFox in one command</div>
+    </div>
+    <div class="prov-card mb" onclick="selectProv('mb')" id="prov-mb">
+      <div class="prov-check"></div>
+      <div class="prov-name" style="color:var(--orange)">MalwareBazaar</div>
+      <div class="prov-desc">1,000 SHA256 hashes</div>
+    </div>
+    <div class="prov-card uh" onclick="selectProv('uh')" id="prov-uh">
+      <div class="prov-check"></div>
+      <div class="prov-name" style="color:var(--pink)">URLhaus</div>
+      <div class="prov-desc">Recent malicious URLs</div>
+    </div>
+    <div class="prov-card tf" onclick="selectProv('tf')" id="prov-tf">
+      <div class="prov-check"></div>
+      <div class="prov-name" style="color:var(--teal)">ThreatFox</div>
+      <div class="prov-desc">7-day IOCs (IPs, domains, hashes)</div>
+    </div>
+  </div>
+
+  <!-- Generate -->
+  <div class="gen-row">
+    <button class="btn-gen" onclick="generate()">Generate PowerShell Command</button>
+  </div>
+
+  <!-- Steps -->
+  <div class="steps" id="stepsBox">
+    <div class="step">
+      <div class="step-n">1</div>
+      <div class="step-text">Click <strong>Copy Command</strong> below</div>
+    </div>
+    <div class="step">
+      <div class="step-n">2</div>
+      <div class="step-text">Open <strong>PowerShell</strong> (Win+X → Windows PowerShell)</div>
+    </div>
+    <div class="step">
+      <div class="step-n">3</div>
+      <div class="step-text"><strong>Right-click</strong> to paste, then hit <strong>Enter</strong>. IOCs export to <code>.\abuse_ch_iocs\</code> as CSV + TXT.</div>
+    </div>
+  </div>
+
+  <!-- Output -->
+  <div class="output-section" id="outputSection">
+    <div class="output-header">
+      <div class="output-title">
+        PowerShell Command
+        <span class="num" id="provLabel">All 3 Providers</span>
+      </div>
+      <button class="btn-copy" id="copyBtn" onclick="copyCmd()">
+        <span id="copyIcon">⧉</span> Copy Command
+      </button>
+    </div>
+    <div class="code-box" id="codeBox"></div>
+
+    <!-- Security reminder shown after copy -->
+    <div class="security-reminder" id="abSecReminder">
+      <strong>🔒 Security built in:</strong> This command auto-clears your PowerShell history after execution so your Auth-Key doesn't persist in <code>Get-History</code> or the PSReadLine history file. If running on a shared jump box, also check <code>%APPDATA%\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt</code> manually.
+    </div>
+  </div>
+
+</div>
+
+
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- TAB SWITCHING SCRIPT                           -->
+<!-- ══════════════════════════════════════════════ -->
+<script>
+function switchTab(tab) {
+  // Hide all panes
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  // Deactivate all buttons
+  document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('active-av','active-ab'); });
+  
+  if (tab === 'alienvault') {
+    document.getElementById('tab-alienvault').classList.add('active');
+    document.getElementById('tabBtnAV').classList.add('active-av');
+  } else {
+    document.getElementById('tab-abusech').classList.add('active');
+    document.getElementById('tabBtnAB').classList.add('active-ab');
+  }
+}
+</script>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- ALIENVAULT OTX SCRIPT (unchanged)              -->
+<!-- ══════════════════════════════════════════════ -->
+<script>
+
+  let allIOCs = [];
+  let filteredIOCs = [];
+  let currentTablePage = 1;
+  const TABLE_PAGE_SIZE = 50;
+  let corsCollapsed = false;
+
+  // OTX pulse-page state
+  let currentPulsePage = 1;
+  const MAX_PULSE_PAGES = 10;
+  let loadedPulsePages = new Set();
+  let hasNextPulsePage = false;
+  let apiKey = '';
+
+  // Security modal state
+  let preFetchShown = false;
+  let postExportShown = false;
+
+  function showModal(id) { document.getElementById(id).classList.add('active'); }
+  function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+  function toggleCors() {
+    corsCollapsed = !corsCollapsed;
+    document.getElementById('corsBody').classList.toggle('hidden', corsCollapsed);
+    document.getElementById('corsToggleLabel').textContent = corsCollapsed ? '▼ EXPAND' : '▲ COLLAPSE';
+  }
+
+  function toggleKey() {
+    const inp = document.getElementById('apiKey');
+    const btn = document.getElementById('toggleBtn');
+    if (inp.type === 'password') { inp.type = 'text'; btn.textContent = 'Hide'; }
+    else { inp.type = 'password'; btn.textContent = 'Show'; }
+  }
+
+  function setStatus(msg) {
+    document.getElementById('fetchStatus').innerHTML = msg ? `<span class="dot">›</span> ${msg}` : '';
+  }
+
+  function setProgress(pct) {
+    const wrap = document.getElementById('progressWrap');
+    wrap.style.display = 'block';
+    document.getElementById('progressFill').style.width = pct + '%';
+    if (pct >= 100) setTimeout(() => { wrap.style.display = 'none'; }, 700);
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('errorBox');
+    if (msg) { el.innerHTML = msg; el.style.display = 'block'; }
+    else { el.style.display = 'none'; }
+  }
+
+  // ── Initial fetch (pulse page 1) ──
+  async function startFetch() {
+    const key = document.getElementById('apiKey').value.trim();
+    if (!key) { showError('Please paste your AlienVault OTX API key above.'); return; }
+
+    // Show security checklist modal once per session
+    if (!preFetchShown) {
+      preFetchShown = true;
+      apiKey = key;
+      showModal('preFetchModal');
+      return; // proceedFetch() is called from the modal button
+    }
+
+    proceedFetch();
+  }
+
+  async function proceedFetch() {
+    const key = document.getElementById('apiKey').value.trim();
+    if (!key) return;
+    apiKey = key;
+
+    showError('');
+    const btn = document.getElementById('fetchBtn');
+    btn.disabled = true;
+    btn.textContent = 'Fetching…';
+    allIOCs = [];
+    loadedPulsePages.clear();
+    currentPulsePage = 1;
+
+    try {
+      setStatus('Connecting to OTX API…');
+      setProgress(10);
+
+      const { pulses, hasNext } = await fetchPulsePage(key, 1);
+      hasNextPulsePage = hasNext;
+      loadedPulsePages.add(1);
+
+      setProgress(60);
+      setStatus(`Processing ${pulses.length} pulses…`);
+
+      for (const p of pulses) allIOCs.push(...extractIOCs(p));
+
+      setProgress(100);
+      setStatus(`Page 1 loaded — ${allIOCs.length.toLocaleString()} IOCs. ${hasNext ? 'More pages available below.' : 'All pulses loaded.'}`);
+
+      populateTypeFilter();
+      updateStats(pulses.length);
+
+      const statsRow = document.getElementById('statsRow');
+      statsRow.style.display = 'grid';
+      statsRow.classList.add('animate-in');
+
+      document.getElementById('controlsRow').style.display = 'flex';
+      document.getElementById('tableSection').style.display = 'block';
+
+      renderTable();
+      renderPulseNav();
+      initColResize();
+    } catch (e) {
+      showError(`<strong>Fetch failed:</strong> ${e.message}<br/>Make sure your CORS extension is <strong>enabled</strong> and your API key is correct.`);
+      setStatus('');
+      setProgress(0);
+      document.getElementById('progressWrap').style.display = 'none';
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Fetch IOCs';
+  }
+
+  // ── Load a specific pulse page on demand ──
+  async function loadPulsePage(pageNum) {
+    if (loadedPulsePages.has(pageNum)) {
+      currentPulsePage = pageNum;
+      setStatus(`Page ${pageNum} already loaded — showing cached IOCs.`);
+      renderPulseNav();
+      return;
+    }
+
+    const btn = document.getElementById('fetchBtn');
+    btn.disabled = true;
+    showError('');
+    setStatus(`Loading pulse page ${pageNum}…`);
+    setProgress(20);
+
+    try {
+      const { pulses, hasNext } = await fetchPulsePage(apiKey, pageNum);
+      hasNextPulsePage = hasNext || pageNum < MAX_PULSE_PAGES;
+      loadedPulsePages.add(pageNum);
+      currentPulsePage = pageNum;
+
+      setProgress(70);
+      for (const p of pulses) allIOCs.push(...extractIOCs(p));
+
+      setProgress(100);
+      setStatus(`Page ${pageNum} loaded — ${allIOCs.length.toLocaleString()} total IOCs across ${loadedPulsePages.size} page(s).`);
+
+      populateTypeFilter();
+      updateStats(null);
+      renderTable();
+      renderPulseNav();
+    } catch (e) {
+      showError(`<strong>Failed to load page ${pageNum}:</strong> ${e.message}`);
+      setStatus('');
+      setProgress(0);
+      document.getElementById('progressWrap').style.display = 'none';
+    }
+
+    btn.disabled = false;
+  }
+
+  // ── OTX API: single pulse page ──
+  async function fetchPulsePage(key, pageNum) {
+    const offset = (pageNum - 1) * 50;
+    const url = `https://otx.alienvault.com/api/v1/pulses/subscribed?limit=50&page=${pageNum}`;
+    const res = await fetch(url, {
+      headers: { 'X-OTX-API-KEY': key, 'Accept': 'application/json' }
+    });
+    if (!res.ok) throw new Error(`OTX returned HTTP ${res.status} — check API key.`);
+    const data = await res.json();
+    return { pulses: data.results || [], hasNext: !!data.next };
+  }
+
+  function extractIOCs(pulse) {
+    const pulseUrl = pulse.id ? `https://otx.alienvault.com/pulse/${pulse.id}` : '';
+    return (pulse.indicators || []).map(ind => ({
+      value: ind.indicator || '',
+      type: (ind.type || '').toUpperCase(),
+      pulse: pulse.name || '',
+      pulse_id: pulse.id || '',
+      pulse_url: pulseUrl,
+      author: (pulse.author || {}).username || '',
+      tlp: (pulse.tlp || 'white').toLowerCase(),
+      tags: (pulse.tags || []).join(', '),
+      created: ind.created || pulse.created || '',
+      description: pulse.description || ''
+    }));
+  }
+
+  // ── Pulse page nav bar (1–10) ──
+  function renderPulseNav() {
+    const nav = document.getElementById('pulseNav');
+    if (!nav) return;
+    let html = '<span class="pnav-label">Pulse Pages</span><div class="pnav-btns">';
+    for (let p = 1; p <= MAX_PULSE_PAGES; p++) {
+      const loaded = loadedPulsePages.has(p);
+      const active = p === currentPulsePage;
+      const cls = active ? 'pnav-btn active' : loaded ? 'pnav-btn loaded' : 'pnav-btn';
+      const title = loaded ? `Page ${p} (cached)` : `Load pulse page ${p}`;
+      html += `<button class="${cls}" onclick="loadPulsePage(${p})" title="${title}">${p}${loaded && !active ? '<span class="loaded-dot"></span>' : ''}</button>`;
+    }
+    html += '</div><span class="pnav-hint">Each page = 50 pulses from OTX. Loaded pages are cached.</span>';
+    nav.innerHTML = html;
+    nav.style.display = 'flex';
+  }
+
+  function populateTypeFilter() {
+    const types = [...new Set(allIOCs.map(i => i.type).filter(Boolean))].sort();
+    const sel = document.getElementById('typeFilter');
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">All Types</option>';
+    types.forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; sel.appendChild(o); });
+    if (cur) sel.value = cur;
+  }
+
+  function updateStats(pulseCount) {
+    document.getElementById('statTotal').textContent = allIOCs.length.toLocaleString();
+    if (pulseCount !== null) document.getElementById('statPulses').textContent = pulseCount;
+    document.getElementById('statTypes').textContent = new Set(allIOCs.map(i => i.type)).size;
+    document.getElementById('statAuthors').textContent = new Set(allIOCs.map(i => i.author)).size;
+  }
+
+  function renderTable() {
+    const typeF = document.getElementById('typeFilter').value;
+    const tlpF = document.getElementById('tlpFilter').value;
+    const search = document.getElementById('searchBox').value.toLowerCase();
+
+    filteredIOCs = allIOCs.filter(i => {
+      if (typeF && i.type !== typeF) return false;
+      if (tlpF && i.tlp !== tlpF) return false;
+      if (search && !i.value.toLowerCase().includes(search) && !i.pulse.toLowerCase().includes(search)) return false;
+      return true;
+    });
+
+    const total = filteredIOCs.length;
+    const totalPages = Math.max(1, Math.ceil(total / TABLE_PAGE_SIZE));
+    if (currentTablePage > totalPages) currentTablePage = 1;
+    const start = (currentTablePage - 1) * TABLE_PAGE_SIZE;
+    const page = filteredIOCs.slice(start, start + TABLE_PAGE_SIZE);
+
+    const tbody = document.getElementById('tableBody');
+    const empty = document.getElementById('emptyState');
+    const pag = document.getElementById('pagination');
+
+    if (page.length === 0) {
+      tbody.innerHTML = '';
+      empty.style.display = 'block';
+      pag.style.display = 'none';
+      return;
+    }
+
+    empty.style.display = 'none';
+    tbody.innerHTML = page.map(i => `
+      <tr>
+        <td style="color:var(--text3);font-size:11px;white-space:nowrap">${i.created ? i.created.slice(0,10) : '—'}</td>
+        <td class="ioc-val" title="${esc(i.value)}">${esc(i.value)}</td>
+        <td><span class="badge ${badgeClass(i.type)}">${esc(i.type) || '—'}</span></td>
+        <td title="${esc(i.pulse)}">${esc(i.pulse)}</td>
+        <td style="color:var(--text3)">${esc(i.author)}</td>
+        <td><span class="tlp tlp-${i.tlp || 'white'}">${i.tlp ? 'TLP:'+i.tlp.toUpperCase() : 'WHITE'}</span></td>
+        <td style="color:var(--text3);font-size:11px" title="${esc(i.tags)}">${esc(i.tags.slice(0,35))}${i.tags.length > 35 ? '…' : ''}</td>
+        <td style="font-size:11px">${i.pulse_url ? `<a href="${esc(i.pulse_url)}" target="_blank" style="color:var(--accent);text-decoration:none;border-bottom:1px solid rgba(0,229,160,0.3)">↗ OTX Pulse</a>` : '—'}</td>
+      </tr>`).join('');
+
+    pag.style.display = 'flex';
+    const s = start + 1, e = Math.min(start + TABLE_PAGE_SIZE, total);
+    let btns = '';
+    const lo = Math.max(1, currentTablePage - 2), hi = Math.min(totalPages, currentTablePage + 2);
+    if (lo > 1) btns += `<button onclick="goTablePage(1)">1</button>${lo > 2 ? '<button disabled style="border:none;color:var(--text3)">…</button>' : ''}`;
+    for (let p = lo; p <= hi; p++) btns += `<button class="${p === currentTablePage ? 'active' : ''}" onclick="goTablePage(${p})">${p}</button>`;
+    if (hi < totalPages) btns += `${hi < totalPages - 1 ? '<button disabled style="border:none;color:var(--text3)">…</button>' : ''}<button onclick="goTablePage(${totalPages})">${totalPages}</button>`;
+
+    pag.innerHTML = `<span>${s}–${e} of ${total.toLocaleString()} IOCs</span><div class="page-btns">${btns}</div>`;
+  }
+
+  function goTablePage(p) { currentTablePage = p; renderTable(); document.getElementById('tableSection').scrollIntoView({behavior:'smooth', block:'start'}); }
+
+  function badgeClass(t) {
+    if (!t) return 'b-def';
+    if (/IPv|^IP/.test(t)) return 'b-ip';
+    if (/DOMAIN|HOSTNAME/.test(t)) return 'b-domain';
+    if (/URL/.test(t)) return 'b-url';
+    if (/FILE|HASH|MD5|SHA/.test(t)) return 'b-hash';
+    if (/EMAIL/.test(t)) return 'b-email';
+    return 'b-def';
+  }
+
+  function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function exportCSV() {
+    const h = ['Date','IOC Value','Type','Pulse','Pulse URL','Author','TLP','Tags','Created','Description'];
+    const rows = filteredIOCs.map(i => [i.created ? i.created.slice(0,10) : '',i.value,i.type,i.pulse,i.pulse_url,i.author,i.tlp,i.tags,i.created,i.description].map(v => `"${String(v||'').replace(/"/g,'""')}"`).join(','));
+    dl(`AlienVault_IOCs_${ts()}.csv`, [h.join(','), ...rows].join('\n'), 'text/csv');
+    if (!postExportShown) { postExportShown = true; showModal('postExportModal'); }
+  }
+
+  function exportJSON() {
+    dl(`AlienVault_IOCs_${ts()}.json`, JSON.stringify(filteredIOCs, null, 2), 'application/json');
+    if (!postExportShown) { postExportShown = true; showModal('postExportModal'); }
+  }
+
+  function dl(name, content, type) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([content], {type}));
+    a.download = name; a.click();
+  }
+
+  function ts() { return new Date().toISOString().slice(0,19).replace(/[:T]/g,'-'); }
+
+  // ── Column resizing ──
+  function initColResize() {
+    const table = document.getElementById('iocTable');
+    if (!table) return;
+    const ths = table.querySelectorAll('thead th');
+    ths.forEach(th => {
+      const resizer = th.querySelector('.col-resizer');
+      if (!resizer) return;
+      // avoid double-binding
+      resizer.onmousedown = null;
+      let startX, startW;
+      resizer.addEventListener('mousedown', e => {
+        startX = e.pageX;
+        startW = th.offsetWidth;
+        resizer.classList.add('dragging');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        const onMove = e => {
+          const newW = Math.max(60, startW + (e.pageX - startX));
+          th.style.width = newW + 'px';
+          th.style.minWidth = newW + 'px';
+        };
+        const onUp = () => {
+          resizer.classList.remove('dragging');
+          document.body.style.cursor = '';
+          document.body.style.userSelect = '';
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+        e.preventDefault();
+      });
+    });
+  }
+  // ── CORS auto-detection ──
+  // Fires a lightweight request to OTX on page load.
+  // If it succeeds → CORS works from this origin → show green banner, hide amber.
+  // If it fails → CORS blocked → show amber banner with extension instructions.
+  (async function detectCors() {
+    try {
+      const r = await fetch('https://otx.alienvault.com/api/v1/pulses/activity?limit=1', {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      });
+      if (r.ok || r.status === 403 || r.status === 401) {
+        // Request reached OTX (even 401/403 means CORS is not blocking)
+        document.getElementById('corsBannerWarn').style.display = 'none';
+        document.getElementById('corsBannerOk').style.display = 'block';
+      }
+    } catch(e) {
+      // fetch threw → CORS blocked → keep the amber warning visible (default)
+    }
+  })();
+
+</script>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- ABUSE.CH SCRIPT (unchanged)                    -->
+<!-- ══════════════════════════════════════════════ -->
+<script>
+
+let currentProv = 'all';
+
+function abToggleKey() {
+  const inp = document.getElementById('abApiKey');
+  const btn = inp.nextElementSibling;
+  if (inp.type === 'password') { inp.type = 'text'; btn.textContent = 'Hide'; }
+  else { inp.type = 'password'; btn.textContent = 'Show'; }
+}
+
+function selectProv(p) {
+  currentProv = p;
+  document.querySelectorAll('.prov-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('prov-' + p).classList.add('selected');
+}
+
+function generate() {
+  const key = document.getElementById('abApiKey').value.trim();
+  if (!key || key.length < 10) {
+    alert('Please paste a valid abuse.ch Auth-Key above.');
+    return;
+  }
+
+  const h = `$h=@{"Auth-Key"="${key}"}`;
+  const dir = `$d=".\\abuse_ch_iocs";md $d -Force|Out-Null;$t=Get-Date -F "yyyy-MM-dd_HH-mm-ss"`;
+
+  const mbFetch = `Write-Host "\`n=== MalwareBazaar ===" -Fore Cyan;$mb=(irm "https://mb-api.abuse.ch/api/v1/" -Method Post -Headers $h -Body "query=get_recent&selector=time&limit=1000").data;Write-Host "  $($mb.Count) samples" -Fore Green`;
+  const mbParse = `$mb|%{$all+=[pscustomobject]@{Date=$_.first_seen;IOC=$_.sha256_hash;Type="SHA256";Provider="MalwareBazaar";Family=$_.signature;Tags=($_.tags-join", ")}}`;
+
+  const uhFetch = `Write-Host "\`n=== URLhaus ===" -Fore Cyan;$uh=(irm "https://urlhaus-api.abuse.ch/v1/urls/recent/" -Method Get -Headers $h).urls;Write-Host "  $($uh.Count) URLs" -Fore Green`;
+  const uhParse = `$uh|%{$all+=[pscustomobject]@{Date=$_.date_added;IOC=$_.url;Type="URL";Provider="URLhaus";Family=$_.threat;Tags=($_.tags-join", ")}}`;
+
+  const tfFetch = `Write-Host "\`n=== ThreatFox ===" -Fore Cyan;$tf=(irm "https://threatfox-api.abuse.ch/api/v1/" -Method Post -Headers $h -Body '{"query":"get_iocs","days":7}' -ContentType "application/json").data;Write-Host "  $($tf.Count) IOCs" -Fore Green`;
+  const tfParse = `$tf|%{$all+=[pscustomobject]@{Date=$_.first_seen;IOC=$_.ioc;Type=$_.ioc_type;Provider="ThreatFox";Family=$_.malware;Tags=($_.tags-join", ")}}`;
+
+  const exportPart = `$all|Export-Csv "$d\\iocs_$t.csv" -NoType;$all|select -Expand IOC|Out-File "$d\\iocs_$t.txt";Write-Host "\`n  Total: $($all.Count) IOCs exported to $d\\" -Fore Cyan`;
+
+  // Auto-cleanup: clear PS history so Auth-Key doesn't persist in terminal history
+  const cleanup = `;Clear-History;try{[Microsoft.PowerShell.PSConsoleReadLine]::ClearHistory()}catch{};Write-Host "\`n  [SECURITY] PowerShell history cleared — Auth-Key removed from terminal." -Fore DarkGray`;
+
+  let cmd = '';
+  let label = '';
+
+  if (currentProv === 'all') {
+    cmd = `${h};${dir};${mbFetch};${uhFetch};${tfFetch};$all=@();${mbParse};${uhParse};${tfParse};${exportPart}${cleanup}`;
+    label = 'All 3 Providers';
+  } else if (currentProv === 'mb') {
+    cmd = `${h};${dir};${mbFetch};$all=@();${mbParse};${exportPart}${cleanup}`;
+    label = 'MalwareBazaar Only';
+  } else if (currentProv === 'uh') {
+    cmd = `${h};${dir};${uhFetch};$all=@();${uhParse};${exportPart}${cleanup}`;
+    label = 'URLhaus Only';
+  } else if (currentProv === 'tf') {
+    cmd = `${h};${dir};${tfFetch};$all=@();${tfParse};${exportPart}${cleanup}`;
+    label = 'ThreatFox Only';
+  }
+
+  document.getElementById('codeBox').textContent = cmd;
+  document.getElementById('provLabel').textContent = label;
+  document.getElementById('outputSection').style.display = 'block';
+  document.getElementById('stepsBox').style.display = 'flex';
+
+  // Reset copy button
+  const cb = document.getElementById('copyBtn');
+  cb.classList.remove('copied');
+  cb.innerHTML = '<span>⧉</span> Copy Command';
+}
+
+function copyCmd() {
+  const text = document.getElementById('codeBox').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const cb = document.getElementById('copyBtn');
+    cb.classList.add('copied');
+    cb.innerHTML = '<span>✓</span> Copied!';
+    // Show security reminder
+    document.getElementById('abSecReminder').style.display = 'block';
+    setTimeout(() => {
+      cb.classList.remove('copied');
+      cb.innerHTML = '<span>⧉</span> Copy Command';
+    }, 2000);
+  });
+}
+
+</script>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- SECURITY MODALS                                -->
+<!-- ══════════════════════════════════════════════ -->
+
+<!-- Pre-fetch modal (AlienVault) -->
+<div class="modal-overlay" id="preFetchModal">
+  <div class="modal-box">
+    <div class="modal-icon warn">⚡</div>
+    <div class="modal-title">Security Checklist — Before Fetching</div>
+    <ul class="modal-checklist">
+      <li><span class="chk">✓</span><span><strong>Close all other browser tabs</strong> — CORS extensions affect every tab. Other sites could exploit the open policy while the extension is active.</span></li>
+      <li><span class="chk">✓</span><span><strong>Verify your CORS extension is ON</strong> — check the toolbar icon. If CORS auto-detected as working (green banner), you can skip this.</span></li>
+      <li><span class="chk">✓</span><span><strong>Use a dedicated browser profile</strong> if possible — isolates cookies and sessions from your main browsing profile.</span></li>
+      <li><span class="chk">✓</span><span><strong>Do not browse other sites</strong> while the extension is enabled — fetch your IOCs, export, then disable immediately.</span></li>
+    </ul>
+    <div class="modal-btns">
+      <button class="modal-btn secondary" onclick="closeModal('preFetchModal')">Cancel</button>
+      <button class="modal-btn primary" onclick="closeModal('preFetchModal'); proceedFetch();">I understand — Fetch IOCs</button>
+    </div>
+    <div class="modal-note">This checklist shows once per session. Subsequent fetches and page loads won't show it again.</div>
+  </div>
+</div>
+
+<!-- Post-export modal (AlienVault) -->
+<div class="modal-overlay" id="postExportModal">
+  <div class="modal-box">
+    <div class="modal-icon ok">✓</div>
+    <div class="modal-title">Export Complete — Secure Your Session</div>
+    <ul class="modal-checklist">
+      <li><span class="chk">✓</span><span><strong>Disable your CORS extension NOW</strong> — click the toolbar icon and toggle it OFF before doing anything else.</span></li>
+      <li><span class="chk">✓</span><span><strong>Close this tab</strong> if you're done fetching — the fewer tabs open with CORS active, the smaller your attack surface.</span></li>
+      <li><span class="chk">✓</span><span><strong>Your exported file</strong> is saved to your Downloads folder. Verify it's there before closing.</span></li>
+    </ul>
+    <div class="modal-btns">
+      <button class="modal-btn secondary" onclick="closeModal('postExportModal')">Stay open — I need more data</button>
+      <button class="modal-btn primary" onclick="closeModal('postExportModal')">Got it — I'll disable CORS now</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
