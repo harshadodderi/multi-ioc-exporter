@@ -5,6 +5,18 @@ A single-file browser tool to fetch, filter, and export Indicators of Compromise
 Built via free tier AI tools
 
 ---
+## Quick Links
+
+**Open the tools directly:**
+
+- 🔗 **[Multi-Source IOC Exporter (abuse.ch)](https://harshadodderi.github.io/multi-ioc-exporter/multi_source_ioc_exporter.html)** — generate PowerShell commands for MalwareBazaar, URLhaus, ThreatFox
+
+- 🔗 **[AlienVault OTX IOC Exporter](https://harshadodderi.github.io/multi-ioc-exporter/alienvault_otx_ioc_exporter_v3.html)** — fetch IOCs from your subscribed pulses
+
+
+Or run locally: download `multi_source_ioc_exporter.html` from this repo and open in your browser.
+
+---
 
 ## What It Does
 
