@@ -6,7 +6,9 @@ Built via free tier AI tools
 
 ---
 
-## Quick Links
+## Quick Links (⚠️ IMPORTANT: Read “Security & Threat Model — Read Before Using” below before opening any hosted tool links.)
+
+> ⚠ **Mandatory:** Do not open any links below until you have read the **Security & Threat Model — Read Before Using** section in full.
 
 **Open the tools directly:**
 
