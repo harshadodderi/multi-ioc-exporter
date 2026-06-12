@@ -2111,7 +2111,7 @@ function generate() {
   const tfFetch = `Write-Host "\`n=== ThreatFox ===" -Fore Cyan;$tf=(irm "https://threatfox-api.abuse.ch/api/v1/" -Method Post -Headers $h -Body '{"query":"get_iocs","days":7}' -ContentType "application/json").data;Write-Host "  $($tf.Count) IOCs" -Fore Green`;
   const tfParse = `$tf|%{$all+=[pscustomobject]@{Date=$_.first_seen;IOC=$_.ioc;Type=$_.ioc_type;Provider="ThreatFox";Family=$_.malware;Tags=($_.tags-join", ")}}`;
 
-  const exportPart = `$all|Export-Csv "$d\\iocs_$t.csv" -NoType;$all|select -Expand IOC|Out-File "$d\\iocs_$t.txt";Write-Host "\`n  Total: $($all.Count) IOCs exported to $d\\" -Fore Cyan`;
+  const exportPart = `$all|Export-Csv "$d\\iocs_$t.csv" -NoType;$all|select -Expand IOC|Out-File "$d\\iocs_$t.txt";$fullPath=(Resolve-Path $d).FullName;Write-Host "\`n  📁 Files saved to: $fullPath" -Fore Green;Write-Host "  └─ iocs_$t.csv" -Fore Gray;Write-Host "  └─ iocs_$t.txt" -Fore Gray;Write-Host "\`n  Total: $($all.Count) IOCs exported" -Fore Cyan`;
 
   // Auto-cleanup: clear PS history so Auth-Key doesn't persist in terminal history
   const cleanup = `;Clear-History;try{[Microsoft.PowerShell.PSConsoleReadLine]::ClearHistory()}catch{};Write-Host "\`n  [SECURITY] PowerShell history cleared — Auth-Key removed from terminal." -Fore DarkGray`;
