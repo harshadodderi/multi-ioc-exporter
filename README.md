@@ -9,9 +9,9 @@ Built via free tier AI tools
 
 **Open the tools directly:**
 
-- 🔗 **[Multi-Source IOC Exporter (abuse.ch)](https://harshadodderi.github.io/multi-ioc-exporter/multi_source_ioc_exporter.html)** — generate PowerShell commands for MalwareBazaar, URLhaus, ThreatFox
+- 🔗 **[Multi-Source IOC Exporter (OTX and abuse.ch)](https://harshadodderi.github.io/multi-ioc-exporter/Multi-IOC-Exporter.html)** — generate PowerShell commands for MalwareBazaar, URLhaus, ThreatFox
 
-- 🔗 **[AlienVault OTX IOC Exporter](https://harshadodderi.github.io/multi-ioc-exporter/alienvault_otx_ioc_exporter_v3.html)** — fetch IOCs from your subscribed pulses
+- 🔗 **[AlienVault OTX IOC Exporter](https://harshadodderi.github.io/multi-ioc-exporter/OTX-IOC-Exporter.html)** — fetch IOCs from your subscribed pulses
 
 
 Or run locally: download `multi_source_ioc_exporter.html` from this repo and open in your browser.
