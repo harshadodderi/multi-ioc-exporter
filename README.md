@@ -1,4 +1,4 @@
-# multi-source-ioc-exporter
+# Multi-Source-IOC-Exporter
 
 A single-file browser tool to fetch, filter, and export Indicators of Compromise (IOCs) from multiple threat intelligence providers — **AlienVault OTX** (live browser fetch) and **abuse.ch** (MalwareBazaar, URLhaus, ThreatFox via PowerShell) — no backend, no install, no dependencies.
 
