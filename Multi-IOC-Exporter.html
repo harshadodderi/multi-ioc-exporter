@@ -3,8 +3,26 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="referrer" content="no-referrer" />
+<!-- Content Security Policy.
+     GitHub Pages cannot set response headers, but a meta CSP works and is the
+     single highest-value control for this tool: even if the font CDN is
+     compromised or the page is MITM'd, injected code cannot exfiltrate the
+     API key, because connect-src only permits otx.alienvault.com and img-src
+     blocks external beacons. No default-src is set so blob: downloads (CSV /
+     JSON export) are unaffected. -->
+<meta http-equiv="Content-Security-Policy" content="
+  script-src 'unsafe-inline';
+  style-src 'unsafe-inline' https://fonts.googleapis.com;
+  font-src https://fonts.gstatic.com;
+  connect-src https://otx.alienvault.com;
+  img-src 'self' data:;
+  frame-src 'none'; child-src 'none'; worker-src 'none'; object-src 'none';
+  base-uri 'none'; form-action 'none';
+" />
 <title>Multi-Source IOC Exporter — AlienVault OTX + abuse.ch</title>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Syne:wght@400;600;700;800&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Syne:wght@400;600;700;800&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" referrerpolicy="no-referrer" />
 <style>
 /* ══════════════════════════════════════════════════ */
 /* SHARED BASE + TAB BAR                             */
@@ -34,14 +52,20 @@ body {
   overflow-x: hidden;
 }
 
+/* Grid backdrop. Tint follows the active tab via a class on <body>, so the
+   two tabs keep their own look without either one redefining :root globally. */
+body { --grid-line: rgba(255,255,255,0.02); --grid-size: 40px; }
+body.theme-av { --grid-line: rgba(0,229,160,0.03); --grid-size: 40px; }
+body.theme-ab { --grid-line: rgba(0,212,255,0.02); --grid-size: 44px; }
+
 body::before {
   content: '';
   position: fixed;
   inset: 0;
   background-image:
-    linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
-  background-size: 40px 40px;
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: var(--grid-size) var(--grid-size);
   pointer-events: none;
   z-index: 0;
 }
@@ -134,58 +158,7 @@ body::before {
   --sans: 'Syne', sans-serif;
 }
 
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  :root {
-    --bg: #0a0c0f;
-    --bg2: #0f1215;
-    --bg3: #141820;
-    --bg4: #1a2030;
-    --border: rgba(255,255,255,0.06);
-    --border2: rgba(255,255,255,0.12);
-    --accent: #00e5a0;
-    --accent2: #00b87a;
-    --accent-dim: rgba(0,229,160,0.08);
-    --accent-glow: rgba(0,229,160,0.15);
-    --text: #e8eaf0;
-    --text2: #8a91a0;
-    --text3: #555d6e;
-    --red: #ff4d6a;
-    --red-dim: rgba(255,77,106,0.1);
-    --amber: #f5a623;
-    --amber-dim: rgba(245,166,35,0.1);
-    --blue: #4d9fff;
-    --blue-dim: rgba(77,159,255,0.1);
-    --purple: #a78bfa;
-    --purple-dim: rgba(167,139,250,0.1);
-    --mono: 'JetBrains Mono', monospace;
-    --sans: 'Syne', sans-serif;
-  }
-
-  html { scroll-behavior: smooth; }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--mono);
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
-
-  /* Grid bg */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image:
-      linear-gradient(rgba(0,229,160,0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0,229,160,0.03) 1px, transparent 1px);
-    background-size: 40px 40px;
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  .container {
+  #tab-alienvault .container {
     max-width: 1000px;
     margin: 0 auto;
     padding: 0 2rem 4rem;
@@ -194,7 +167,7 @@ body::before {
   }
 
   /* ── Header ── */
-  header {
+  #tab-alienvault header {
     padding: 3rem 0 2.5rem;
     border-bottom: 1px solid var(--border);
     margin-bottom: 2.5rem;
@@ -225,7 +198,7 @@ body::before {
     font-weight: 500;
   }
 
-  h1 {
+  #tab-alienvault h1 {
     font-family: var(--sans);
     font-size: clamp(26px, 4vw, 38px);
     font-weight: 800;
@@ -234,9 +207,9 @@ body::before {
     line-height: 1.1;
   }
 
-  h1 span { color: var(--accent); }
+  #tab-alienvault h1 span { color: var(--accent); }
 
-  .subtitle {
+  #tab-alienvault .subtitle {
     margin-top: 10px;
     font-size: 13px;
     color: var(--text2);
@@ -244,7 +217,7 @@ body::before {
   }
 
   /* ── Section titles ── */
-  .section-label {
+  #tab-alienvault .section-label {
     font-size: 10px;
     letter-spacing: 2.5px;
     text-transform: uppercase;
@@ -416,7 +389,7 @@ body::before {
 
   .card:hover { border-color: var(--border2); }
 
-  .key-row {
+  #tab-alienvault .key-row {
     display: flex;
     gap: 8px;
     align-items: stretch;
@@ -445,7 +418,7 @@ body::before {
   .key-input-wrap input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
   .key-input-wrap input::placeholder { color: var(--text3); letter-spacing: 0; }
 
-  .btn {
+  #tab-alienvault .btn {
     height: 44px;
     padding: 0 18px;
     border-radius: 8px;
@@ -461,8 +434,8 @@ body::before {
     letter-spacing: 0.5px;
   }
 
-  .btn:hover { border-color: var(--border2); background: var(--bg3); color: var(--text); }
-  .btn:active { transform: scale(0.97); }
+  #tab-alienvault .btn:hover { border-color: var(--border2); background: var(--bg3); color: var(--text); }
+  #tab-alienvault .btn:active { transform: scale(0.97); }
 
   .btn-fetch {
     background: var(--accent);
@@ -510,7 +483,7 @@ body::before {
   /* ── Stats ── */
   .stats {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0,1fr));
+    grid-template-columns: repeat(auto-fit, minmax(150px,1fr));
     gap: 10px;
     margin-bottom: 1.5rem;
     display: none;
@@ -830,28 +803,14 @@ body::before {
 /* ABUSE.CH TAB — original CSS (namespaced)          */
 /* ══════════════════════════════════════════════════ */
 #tab-abusech {
-  --cyan: #00d4ff;
-  --cyan-dim: rgba(0,212,255,0.07);
-  --green: #00e68a;
-  --green-dim: rgba(0,230,138,0.08);
-  --red: #ff4560;
-  --amber: #fbbf24;
-  --amber-dim: rgba(251,191,36,0.08);
-  --orange: #ff6b35;
-  --pink: #ec4899;
-  --teal: #14b8a6;
-  --sans: 'Outfit', sans-serif;
-}
-
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-:root {
+  /* Palette moved off :root — as a global it was recolouring the OTX tab. */
   --bg: #07090d;
   --bg2: #0c1017;
   --bg3: #121822;
   --bg4: #1a2233;
-  --border: rgba(255,255,255,0.06);
-  --border2: rgba(255,255,255,0.1);
+  --text: #e0e6f0;
+  --text2: #7a8499;
+  --text3: #434d63;
   --cyan: #00d4ff;
   --cyan-dim: rgba(0,212,255,0.07);
   --green: #00e68a;
@@ -862,32 +821,10 @@ body::before {
   --orange: #ff6b35;
   --pink: #ec4899;
   --teal: #14b8a6;
-  --text: #e0e6f0;
-  --text2: #7a8499;
-  --text3: #434d63;
-  --mono: 'JetBrains Mono', monospace;
   --sans: 'Outfit', sans-serif;
 }
 
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--mono);
-  min-height: 100vh;
-}
-
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(0,212,255,0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0,212,255,0.02) 1px, transparent 1px);
-  background-size: 44px 44px;
-  pointer-events: none;
-}
-
-.container {
+#tab-abusech .container {
   max-width: 860px;
   margin: 0 auto;
   padding: 0 1.5rem 4rem;
@@ -896,7 +833,7 @@ body::before {
 }
 
 /* Header */
-header {
+#tab-abusech header {
   padding: 3rem 0 2rem;
   border-bottom: 1px solid var(--border);
   margin-bottom: 2rem;
@@ -927,7 +864,7 @@ header {
   font-weight: 500;
 }
 
-h1 {
+#tab-abusech h1 {
   font-family: var(--sans);
   font-size: clamp(26px, 5vw, 40px);
   font-weight: 900;
@@ -935,9 +872,9 @@ h1 {
   line-height: 1.1;
 }
 
-h1 .hi { color: var(--cyan); }
+#tab-abusech h1 .hi { color: var(--cyan); }
 
-.subtitle {
+#tab-abusech .subtitle {
   margin-top: 10px;
   font-size: 12.5px;
   color: var(--text2);
@@ -955,7 +892,7 @@ h1 .hi { color: var(--cyan); }
 
 .key-section:hover { border-color: var(--border2); }
 
-.section-label {
+#tab-abusech .section-label {
   font-size: 10px;
   letter-spacing: 2.5px;
   text-transform: uppercase;
@@ -964,12 +901,12 @@ h1 .hi { color: var(--cyan); }
   font-weight: 500;
 }
 
-.key-row {
+#tab-abusech .key-row {
   display: flex;
   gap: 8px;
 }
 
-.key-row input {
+#tab-abusech .key-row input {
   flex: 1;
   height: 44px;
   background: var(--bg3);
@@ -984,10 +921,10 @@ h1 .hi { color: var(--cyan); }
   transition: border-color 0.2s;
 }
 
-.key-row input:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px var(--cyan-dim); }
-.key-row input::placeholder { color: var(--text3); letter-spacing: 0; }
+#tab-abusech .key-row input:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px var(--cyan-dim); }
+#tab-abusech .key-row input::placeholder { color: var(--text3); letter-spacing: 0; }
 
-.btn {
+#tab-abusech .btn {
   height: 44px;
   padding: 0 16px;
   border-radius: 8px;
@@ -1002,16 +939,16 @@ h1 .hi { color: var(--cyan); }
   transition: all 0.15s;
 }
 
-.btn:hover { background: var(--bg3); color: var(--text); border-color: var(--border2); }
+#tab-abusech .btn:hover { background: var(--bg3); color: var(--text); border-color: var(--border2); }
 
-.key-hint {
+#tab-abusech .key-hint {
   margin-top: 10px;
   font-size: 11px;
   color: var(--text3);
   line-height: 1.6;
 }
 
-.key-hint a { color: var(--cyan); text-decoration: none; border-bottom: 1px solid rgba(0,212,255,0.3); }
+#tab-abusech .key-hint a { color: var(--cyan); text-decoration: none; border-bottom: 1px solid rgba(0,212,255,0.3); }
 
 /* Provider select */
 .providers {
@@ -1106,10 +1043,10 @@ h1 .hi { color: var(--cyan); }
 .output-section {
   display: none;
   margin-bottom: 1.5rem;
-  animation: fadeUp 0.3s ease;
+  animation: abFadeUp 0.3s ease;
 }
 
-@keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+@keyframes abFadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
 
 .output-header {
   display: flex;
@@ -1185,7 +1122,7 @@ h1 .hi { color: var(--cyan); }
   flex-direction: column;
   gap: 8px;
   margin-bottom: 1.5rem;
-  animation: fadeUp 0.3s ease;
+  animation: abFadeUp 0.3s ease;
 }
 
 .step {
@@ -1389,7 +1326,7 @@ h1 .hi { color: var(--cyan); }
 
 </style>
 </head>
-<body>
+<body class="theme-av">
 
 <!-- ══════════════════════════════════════════════ -->
 <!-- MASTER HEADER + TAB BAR                       -->
@@ -1465,7 +1402,7 @@ h1 .hi { color: var(--cyan); }
           <div class="step-num">3</div>
           <div class="step-content">
             <div class="step-title">Paste your OTX API key below and fetch</div>
-            <div class="step-desc">Get your key from <a href="https://otx.alienvault.com/api" target="_blank">otx.alienvault.com/api</a> → "Your API Key". Paste it in the field below and click Fetch IOCs.</div>
+            <div class="step-desc">Get your key from <a href="https://otx.alienvault.com/api" target="_blank" rel="noopener noreferrer">otx.alienvault.com/api</a> → "Your API Key". Paste it in the field below and click Fetch IOCs.</div>
           </div>
         </div>
         <div class="cors-step">
@@ -1498,7 +1435,8 @@ h1 .hi { color: var(--cyan); }
     <div class="section-label">OTX API Key</div>
     <div class="key-row">
       <div class="key-input-wrap">
-        <input type="password" id="apiKey" placeholder="Paste your AlienVault OTX API key here..." autocomplete="off" />
+        <input type="password" id="apiKey" placeholder="Paste your AlienVault OTX API key here..."
+               autocomplete="off" spellcheck="false" autocapitalize="off" autocorrect="off" data-lpignore="true" />
       </div>
       <button class="btn" id="toggleBtn" onclick="toggleKey()">Show</button>
       <button class="btn btn-fetch" id="fetchBtn" onclick="startFetch()">Fetch IOCs</button>
@@ -1514,7 +1452,8 @@ h1 .hi { color: var(--cyan); }
 
   <!-- Stats -->
   <div class="stats" id="statsRow">
-    <div class="stat"><div class="stat-label">Total IOCs</div><div class="stat-value" id="statTotal">0</div></div>
+    <div class="stat"><div class="stat-label">IOC Rows</div><div class="stat-value" id="statTotal">0</div></div>
+    <div class="stat"><div class="stat-label">Unique IOCs</div><div class="stat-value" id="statUnique">0</div></div>
     <div class="stat"><div class="stat-label">Pulses</div><div class="stat-value" id="statPulses">0</div></div>
     <div class="stat"><div class="stat-label">IOC Types</div><div class="stat-value" id="statTypes">0</div></div>
     <div class="stat"><div class="stat-label">Authors</div><div class="stat-value" id="statAuthors">0</div></div>
@@ -1592,18 +1531,20 @@ h1 .hi { color: var(--cyan); }
   <div class="info-note">
     <strong>How it works:</strong> This page generates a PowerShell command with your Auth-Key baked in.
     You copy it, paste it into PowerShell, and it fetches IOCs directly from abuse.ch APIs — exporting CSV + TXT files to an <code style="color:var(--amber)">abuse_ch_iocs</code> folder.
-    Your key never leaves your machine. This page runs entirely offline.
+    This page makes no API calls of its own — it only builds text (it does load webfonts from Google).
+    Your key goes to your clipboard and your shell, so treat the clipboard as tainted until you overwrite it.
   </div>
 
   <!-- Auth-Key -->
   <div class="key-section">
     <div class="section-label">abuse.ch Auth-Key</div>
     <div class="key-row">
-      <input type="password" id="abApiKey" placeholder="Paste your Auth-Key from auth.abuse.ch..." autocomplete="off" />
+      <input type="password" id="abApiKey" placeholder="Paste your Auth-Key from auth.abuse.ch..."
+             autocomplete="off" spellcheck="false" autocapitalize="off" autocorrect="off" data-lpignore="true" />
       <button class="btn" onclick="abToggleKey()">Show</button>
     </div>
     <div class="key-hint">
-      Free key from <a href="https://auth.abuse.ch/" target="_blank">auth.abuse.ch</a> — sign in, add a second login method, Save profile, generate under <em>Your API Keys</em>. One key for all three providers.
+      Free key from <a href="https://auth.abuse.ch/" target="_blank" rel="noopener noreferrer">auth.abuse.ch</a> — sign in, add a second login method, Save profile, generate under <em>Your API Keys</em>. One key for all three providers.
     </div>
   </div>
 
@@ -1649,6 +1590,10 @@ h1 .hi { color: var(--cyan); }
     </div>
     <div class="step">
       <div class="step-n">3</div>
+      <div class="step-text"><strong>Recommended:</strong> first run <code>Set-PSReadLineOption -HistorySaveStyle SaveNothing</code> as its own command. PSReadLine writes each line to disk the moment you press Enter, so this is the only way to stop the key being written at all.</div>
+    </div>
+    <div class="step">
+      <div class="step-n">4</div>
       <div class="step-text"><strong>Right-click</strong> to paste, then hit <strong>Enter</strong>. IOCs export to <code>.\abuse_ch_iocs\</code> as CSV + TXT.</div>
     </div>
   </div>
@@ -1668,7 +1613,7 @@ h1 .hi { color: var(--cyan); }
 
     <!-- Security reminder shown after copy -->
     <div class="security-reminder" id="abSecReminder">
-      <strong>🔒 Security built in:</strong> This command auto-clears your PowerShell history after execution so your Auth-Key doesn't persist in <code>Get-History</code> or the PSReadLine history file. If running on a shared jump box, also check <code>%APPDATA%\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt</code> manually.
+      <strong>🔒 What the cleanup actually does:</strong> clears <code>Get-History</code>, clears the in-memory PSReadLine buffer, then rewrites the PSReadLine history <em>file</em> with any line containing your Auth-Key removed. It does <strong>not</strong> cover PowerShell transcripts, script-block logging (Event ID 4104), or your clipboard. On a shared or logged host, assume the key is recoverable and rotate it at <a href="https://auth.abuse.ch/" target="_blank" rel="noopener noreferrer">auth.abuse.ch</a> when you are done. Verify with <code>(Get-PSReadLineOption).HistorySavePath</code>.
     </div>
   </div>
 
@@ -1690,9 +1635,13 @@ function switchTab(tab) {
   if (tab === 'alienvault') {
     document.getElementById('tab-alienvault').classList.add('active');
     document.getElementById('tabBtnAV').classList.add('active-av');
+    document.body.classList.add('theme-av');
+    document.body.classList.remove('theme-ab');
   } else {
     document.getElementById('tab-abusech').classList.add('active');
     document.getElementById('tabBtnAB').classList.add('active-ab');
+    document.body.classList.add('theme-ab');
+    document.body.classList.remove('theme-av');
   }
 }
 </script>
@@ -1708,17 +1657,24 @@ function switchTab(tab) {
   const TABLE_PAGE_SIZE = 50;
   let corsCollapsed = false;
 
+  // Dedupe guard — the same indicator can appear in several pulses, and a page
+  // could be re-loaded. Without this the row count (and the CSV) is inflated.
+  const seenIOCKeys = new Set();
+
   // OTX pulse-page state
   let currentPulsePage = 1;
   const MAX_PULSE_PAGES = 10;
   let loadedPulsePages = new Set();
-  let hasNextPulsePage = false;
   let apiKey = '';
+  let totalPulsesLoaded = 0;
+  let subscribedPulseCount = null;   // data.count from OTX = total subscribed pulses
+  let availablePulsePages = 1;       // page buttons that actually resolve to data
 
   // Security modal state
   let preFetchShown = false;
   let postExportShown = false;
   let corsDetected = false;
+  let corsProbe = null;              // promise for the on-load CORS probe
 
   function showModal(id) { document.getElementById(id).classList.add('active'); }
   function closeModal(id) { document.getElementById(id).classList.remove('active'); }
@@ -1755,21 +1711,33 @@ function switchTab(tab) {
 
   // ── Initial fetch (pulse page 1) ──
   async function startFetch() {
-  const key = document.getElementById('apiKey').value.trim();
-  if (!key) { 
-    showError('Please paste your AlienVault OTX API key above.'); 
-    return; 
-  }
-
-  if (!corsDetected && !preFetchShown) {
-    preFetchShown = true;
+    const key = document.getElementById('apiKey').value.trim();
+    if (!key) {
+      showError('Please paste your AlienVault OTX API key above.');
+      return;
+    }
     apiKey = key;
-    showModal('preFetchModal');
-    return;
+
+    // Wait for the on-load CORS probe so we do not race the banner swap.
+    if (corsProbe) { try { await corsProbe; } catch (e) {} }
+
+    // The checklist is shown once per session REGARDLESS of CORS status.
+    // Hosted use (GitHub Pages) still carries key-in-DOM and CDN-supply-chain
+    // risk, so skipping the warning when CORS auto-detects is backwards.
+    if (!preFetchShown) {
+      showModal('preFetchModal');
+      return;
+    }
+
+    proceedFetch();
   }
 
-  proceedFetch();
-}
+  // Only an explicit acknowledgement suppresses the checklist for the session.
+  // Cancelling must NOT silently arm the next click.
+  function acknowledgePreFetch() {
+    preFetchShown = true;
+    proceedFetch();
+  }
 
   async function proceedFetch() {
     const key = document.getElementById('apiKey').value.trim();
@@ -1781,27 +1749,33 @@ function switchTab(tab) {
     btn.disabled = true;
     btn.textContent = 'Fetching…';
     allIOCs = [];
+    seenIOCKeys.clear();
     loadedPulsePages.clear();
+    totalPulsesLoaded = 0;
     currentPulsePage = 1;
 
     try {
       setStatus('Connecting to OTX API…');
       setProgress(10);
 
-      const { pulses, hasNext } = await fetchPulsePage(key, 1);
-      hasNextPulsePage = hasNext;
+      const { pulses, hasNext, count } = await fetchPulsePage(key, 1);
       loadedPulsePages.add(1);
+      totalPulsesLoaded += pulses.length;
+      subscribedPulseCount = (typeof count === 'number') ? count : null;
+      availablePulsePages = (subscribedPulseCount === null)
+        ? (hasNext ? MAX_PULSE_PAGES : 1)
+        : Math.min(MAX_PULSE_PAGES, Math.max(1, Math.ceil(subscribedPulseCount / 50)));
 
       setProgress(60);
       setStatus(`Processing ${pulses.length} pulses…`);
 
-      for (const p of pulses) allIOCs.push(...extractIOCs(p));
+      const added = addIOCs(pulses);
 
       setProgress(100);
-      setStatus(`Page 1 loaded — ${allIOCs.length.toLocaleString()} IOCs. ${hasNext ? 'More pages available below.' : 'All pulses loaded.'}`);
+      setStatus(`Page 1 loaded — ${added.toLocaleString()} IOCs from ${pulses.length} pulses. ${availablePulsePages > 1 ? 'More pages available below.' : 'All pulses loaded.'}`);
 
       populateTypeFilter();
-      updateStats(pulses.length);
+      updateStats();
 
       const statsRow = document.getElementById('statsRow');
       statsRow.style.display = 'grid';
@@ -1826,6 +1800,7 @@ function switchTab(tab) {
 
   // ── Load a specific pulse page on demand ──
   async function loadPulsePage(pageNum) {
+    if (!apiKey) { showError('Fetch page 1 first — no API key in session.'); return; }
     if (loadedPulsePages.has(pageNum)) {
       currentPulsePage = pageNum;
       setStatus(`Page ${pageNum} already loaded — showing cached IOCs.`);
@@ -1840,19 +1815,23 @@ function switchTab(tab) {
     setProgress(20);
 
     try {
-      const { pulses, hasNext } = await fetchPulsePage(apiKey, pageNum);
-      hasNextPulsePage = hasNext || pageNum < MAX_PULSE_PAGES;
+      const { pulses, count } = await fetchPulsePage(apiKey, pageNum);
       loadedPulsePages.add(pageNum);
+      totalPulsesLoaded += pulses.length;
       currentPulsePage = pageNum;
+      if (typeof count === 'number') {
+        subscribedPulseCount = count;
+        availablePulsePages = Math.min(MAX_PULSE_PAGES, Math.max(1, Math.ceil(count / 50)));
+      }
 
       setProgress(70);
-      for (const p of pulses) allIOCs.push(...extractIOCs(p));
+      const added = addIOCs(pulses);
 
       setProgress(100);
-      setStatus(`Page ${pageNum} loaded — ${allIOCs.length.toLocaleString()} total IOCs across ${loadedPulsePages.size} page(s).`);
+      setStatus(`Page ${pageNum} loaded — +${added.toLocaleString()} new IOCs (${allIOCs.length.toLocaleString()} total across ${loadedPulsePages.size} page(s)).`);
 
       populateTypeFilter();
-      updateStats(null);
+      updateStats();
       renderTable();
       renderPulseNav();
     } catch (e) {
@@ -1867,14 +1846,33 @@ function switchTab(tab) {
 
   // ── OTX API: single pulse page ──
   async function fetchPulsePage(key, pageNum) {
-    const offset = (pageNum - 1) * 50;
     const url = `https://otx.alienvault.com/api/v1/pulses/subscribed?limit=50&page=${pageNum}`;
     const res = await fetch(url, {
       headers: { 'X-OTX-API-KEY': key, 'Accept': 'application/json' }
     });
     if (!res.ok) throw new Error(`OTX returned HTTP ${res.status} — check API key.`);
     const data = await res.json();
-    return { pulses: data.results || [], hasNext: !!data.next };
+    return {
+      pulses: data.results || [],
+      hasNext: !!data.next,
+      count: (typeof data.count === 'number') ? data.count : null
+    };
+  }
+
+  // Flatten a batch of pulses into rows, skipping exact duplicates.
+  // Returns the number of new rows added.
+  function addIOCs(pulses) {
+    let added = 0;
+    for (const p of pulses) {
+      for (const ioc of extractIOCs(p)) {
+        const k = `${ioc.value}|${ioc.type}|${ioc.pulse_id}`;
+        if (seenIOCKeys.has(k)) continue;
+        seenIOCKeys.add(k);
+        allIOCs.push(ioc);
+        added++;
+      }
+    }
+    return added;
   }
 
   function extractIOCs(pulse) {
@@ -1897,15 +1895,24 @@ function switchTab(tab) {
   function renderPulseNav() {
     const nav = document.getElementById('pulseNav');
     if (!nav) return;
+    const pages = Math.min(MAX_PULSE_PAGES, Math.max(1, availablePulsePages));
     let html = '<span class="pnav-label">Pulse Pages</span><div class="pnav-btns">';
-    for (let p = 1; p <= MAX_PULSE_PAGES; p++) {
+    for (let p = 1; p <= pages; p++) {
       const loaded = loadedPulsePages.has(p);
       const active = p === currentPulsePage;
       const cls = active ? 'pnav-btn active' : loaded ? 'pnav-btn loaded' : 'pnav-btn';
       const title = loaded ? `Page ${p} (cached)` : `Load pulse page ${p}`;
       html += `<button class="${cls}" onclick="loadPulsePage(${p})" title="${title}">${p}${loaded && !active ? '<span class="loaded-dot"></span>' : ''}</button>`;
     }
-    html += '</div><span class="pnav-hint">Each page = 50 pulses from OTX. Loaded pages are cached.</span>';
+    html += '</div>';
+    let hint = 'Each page = 50 pulses from OTX. Loaded pages are cached.';
+    if (subscribedPulseCount !== null) {
+      hint = `${subscribedPulseCount.toLocaleString()} subscribed pulses — ${pages} page(s) reachable here.`;
+      if (subscribedPulseCount > MAX_PULSE_PAGES * 50) {
+        hint += ` Capped at ${(MAX_PULSE_PAGES * 50).toLocaleString()}; use the OTX SDK / DirectConnect for the remainder.`;
+      }
+    }
+    html += `<span class="pnav-hint">${esc(hint)}</span>`;
     nav.innerHTML = html;
     nav.style.display = 'flex';
   }
@@ -1919,9 +1926,11 @@ function switchTab(tab) {
     if (cur) sel.value = cur;
   }
 
-  function updateStats(pulseCount) {
+  function updateStats() {
     document.getElementById('statTotal').textContent = allIOCs.length.toLocaleString();
-    if (pulseCount !== null) document.getElementById('statPulses').textContent = pulseCount;
+    document.getElementById('statUnique').textContent =
+      new Set(allIOCs.map(i => `${i.value}|${i.type}`)).size.toLocaleString();
+    document.getElementById('statPulses').textContent = totalPulsesLoaded.toLocaleString();
     document.getElementById('statTypes').textContent = new Set(allIOCs.map(i => i.type)).size;
     document.getElementById('statAuthors').textContent = new Set(allIOCs.map(i => i.author)).size;
   }
@@ -1958,14 +1967,14 @@ function switchTab(tab) {
     empty.style.display = 'none';
     tbody.innerHTML = page.map(i => `
       <tr>
-        <td style="color:var(--text3);font-size:11px;white-space:nowrap">${i.created ? i.created.slice(0,10) : '—'}</td>
+        <td style="color:var(--text3);font-size:11px;white-space:nowrap">${esc(i.created ? i.created.slice(0,10) : '—')}</td>
         <td class="ioc-val" title="${esc(i.value)}">${esc(i.value)}</td>
         <td><span class="badge ${badgeClass(i.type)}">${esc(i.type) || '—'}</span></td>
         <td title="${esc(i.pulse)}">${esc(i.pulse)}</td>
         <td style="color:var(--text3)">${esc(i.author)}</td>
-        <td><span class="tlp tlp-${i.tlp || 'white'}">${i.tlp ? 'TLP:'+i.tlp.toUpperCase() : 'WHITE'}</span></td>
+        <td><span class="tlp tlp-${tlpClass(i.tlp)}">${esc(i.tlp ? 'TLP:' + i.tlp.toUpperCase() : 'WHITE')}</span></td>
         <td style="color:var(--text3);font-size:11px" title="${esc(i.tags)}">${esc(i.tags.slice(0,35))}${i.tags.length > 35 ? '…' : ''}</td>
-        <td style="font-size:11px">${i.pulse_url ? `<a href="${esc(i.pulse_url)}" target="_blank" style="color:var(--accent);text-decoration:none;border-bottom:1px solid rgba(0,229,160,0.3)">↗ OTX Pulse</a>` : '—'}</td>
+        <td style="font-size:11px">${i.pulse_url ? `<a href="${esc(i.pulse_url)}" target="_blank" rel="noopener noreferrer" style="color:var(--accent);text-decoration:none;border-bottom:1px solid rgba(0,229,160,0.3)">↗ OTX Pulse</a>` : '—'}</td>
       </tr>`).join('');
 
     pag.style.display = 'flex';
@@ -1991,14 +2000,39 @@ function switchTab(tab) {
     return 'b-def';
   }
 
+  // Everything rendered into innerHTML is third-party content written by
+  // arbitrary OTX pulse authors. Treat it as hostile.
   function esc(s) {
-    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    return String(s == null ? '' : s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
+  // TLP goes into a class attribute — whitelist it rather than escape it.
+  const TLP_LEVELS = ['white','green','amber','red'];
+  function tlpClass(t) {
+    return TLP_LEVELS.includes(String(t || '').toLowerCase()) ? String(t).toLowerCase() : 'white';
+  }
+
+  // CSV / spreadsheet formula injection guard.
+  // Pulse names, tags, authors and descriptions are attacker-controlled. A pulse
+  // named =cmd|'/c calc'!A0 becomes a live DDE payload when the CSV is opened in
+  // Excel, so any cell starting with = + - @ TAB or CR is prefixed with an
+  // apostrophe to force it to be treated as text.
+  function csvCell(v) {
+    let s = String(v == null ? '' : v);
+    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+    return `"${s.replace(/"/g, '""')}"`;
   }
 
   function exportCSV() {
     const h = ['Date','IOC Value','Type','Pulse','Pulse URL','Author','TLP','Tags','Created','Description'];
-    const rows = filteredIOCs.map(i => [i.created ? i.created.slice(0,10) : '',i.value,i.type,i.pulse,i.pulse_url,i.author,i.tlp,i.tags,i.created,i.description].map(v => `"${String(v||'').replace(/"/g,'""')}"`).join(','));
-    dl(`AlienVault_IOCs_${ts()}.csv`, [h.join(','), ...rows].join('\n'), 'text/csv');
+    const rows = filteredIOCs.map(i => [
+      i.created ? i.created.slice(0,10) : '', i.value, i.type, i.pulse, i.pulse_url,
+      i.author, i.tlp, i.tags, i.created, i.description
+    ].map(csvCell).join(','));
+    // CRLF + BOM so Excel opens UTF-8 IOCs correctly instead of mangling them.
+    dl(`AlienVault_IOCs_${ts()}.csv`, '\uFEFF' + [h.map(csvCell).join(','), ...rows].join('\r\n'), 'text/csv;charset=utf-8');
     if (!postExportShown) { postExportShown = true; showModal('postExportModal'); }
   }
 
@@ -2008,9 +2042,14 @@ function switchTab(tab) {
   }
 
   function dl(name, content, type) {
+    const url = URL.createObjectURL(new Blob([content], {type}));
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([content], {type}));
-    a.download = name; a.click();
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);   // release the blob
   }
 
   function ts() { return new Date().toISOString().slice(0,19).replace(/[:T]/g,'-'); }
@@ -2051,24 +2090,29 @@ function switchTab(tab) {
     });
   }
   // ── CORS auto-detection ──
-  // Fires a lightweight request to OTX on page load.
-  // If it succeeds → CORS works from this origin → show green banner, hide amber.
-  // If it fails → CORS blocked → show amber banner with extension instructions.
-  (async function detectCors() {
-  try {
-    const r = await fetch('https://otx.alienvault.com/api/v1/pulses/activity?limit=1', {
-      method: 'GET',
-      headers: { 'Accept': 'application/json' }
-    });
-    if (r.ok || r.status === 403 || r.status === 401) {
-      corsDetected = true;
+  // The probe MUST use the same request shape as the real fetch. The real call
+  // sends X-OTX-API-KEY, which is NOT a CORS-safelisted header and therefore
+  // forces an OPTIONS preflight. The previous probe sent only Accept — a
+  // "simple" request that needs no preflight — so it could report "CORS is
+  // working" while every real fetch still failed. A throwaway key value is used
+  // so nothing real is transmitted; any HTTP response at all (200/401/403)
+  // proves preflight + Access-Control-Allow-Origin worked, which is all we test.
+  async function detectCors() {
+    try {
+      const r = await fetch('https://otx.alienvault.com/api/v1/pulses/activity?limit=1', {
+        method: 'GET',
+        headers: { 'X-OTX-API-KEY': 'cors-preflight-probe', 'Accept': 'application/json' }
+      });
+      corsDetected = !!r;   // we got a response object => CORS did not block us
       document.getElementById('corsBannerWarn').style.display = 'none';
       document.getElementById('corsBannerOk').style.display = 'block';
+    } catch (e) {
+      corsDetected = false; // TypeError => blocked by CORS (or offline)
     }
-  } catch (e) {
-    corsDetected = false;
+    return corsDetected;
   }
-})();
+
+  corsProbe = detectCors();
 
 </script>
 
@@ -2099,7 +2143,11 @@ function generate() {
     return;
   }
 
-  const h = `$h=@{"Auth-Key"="${key}"}`;
+  // The key is pasted into a shell. Emit it as a PowerShell single-quoted
+  // literal (only ' needs doubling) so a key containing " ; $ or ` cannot
+  // break out of the string and change what the command does.
+  const psKey = key.replace(/'/g, "''");
+  const h = `$k='${psKey}';$h=@{"Auth-Key"=$k}`;
   const dir = `$d=".\\abuse_ch_iocs";md $d -Force|Out-Null;$t=Get-Date -F "yyyy-MM-dd_HH-mm-ss"`;
 
   const mbFetch = `Write-Host "\`n=== MalwareBazaar ===" -Fore Cyan;$mb=(irm "https://mb-api.abuse.ch/api/v1/" -Method Post -Headers $h -Body "query=get_recent&selector=time&limit=1000").data;Write-Host "  $($mb.Count) samples" -Fore Green`;
@@ -2113,8 +2161,19 @@ function generate() {
 
   const exportPart = `$all|Export-Csv "$d\\iocs_$t.csv" -NoType;$all|select -Expand IOC|Out-File "$d\\iocs_$t.txt";$fullPath=(Resolve-Path $d).FullName;$csvFile="$fullPath\\iocs_$t.csv";$txtFile="$fullPath\\iocs_$t.txt";Write-Host "\`n📁 Please find the IOCs at:" -Fore Green;Write-Host "  $csvFile" -Fore Cyan;Write-Host "  $txtFile" -Fore Cyan;Write-Host "\`nTotal: $($all.Count) IOCs exported" -Fore Green`;
 
-  // Auto-cleanup: clear PS history so Auth-Key doesn't persist in terminal history
-  const cleanup = `;Clear-History;try{[Microsoft.PowerShell.PSConsoleReadLine]::ClearHistory()}catch{};Write-Host "\`n  [SECURITY] PowerShell history cleared — Auth-Key removed from terminal." -Fore DarkGray`;
+  // Auto-cleanup.
+  // NOTE: [PSConsoleReadLine]::ClearHistory() only clears the IN-MEMORY buffer.
+  // It does NOT delete ConsoleHost_history.txt, and PSReadLine writes the line
+  // to that file the moment you press Enter — i.e. before this cleanup ever
+  // runs. So the file itself must be rewritten with the matching line removed.
+  const cleanup = `;Clear-History;try{[Microsoft.PowerShell.PSConsoleReadLine]::ClearHistory()}catch{};`
+    + `try{$hp=(Get-PSReadLineOption).HistorySavePath;if($hp -and (Test-Path $hp)){`
+    + `$keep=@(Get-Content -LiteralPath $hp -ErrorAction Stop|Where-Object{$_ -notmatch [regex]::Escape($k)});`
+    + `Set-Content -LiteralPath $hp -Value $keep -Force;`
+    + `Write-Host "\`n  [SECURITY] Auth-Key scrubbed from $hp" -Fore DarkGray}}`
+    + `catch{Write-Host "\`n  [SECURITY] Could not scrub the PSReadLine history file — delete it manually: (Get-PSReadLineOption).HistorySavePath" -Fore Yellow};`
+    + `Remove-Variable k,h -ErrorAction SilentlyContinue;`
+    + `Write-Host "  [SECURITY] In-session history cleared. Transcripts / script-block logs are NOT covered." -Fore DarkGray`;
 
   let cmd = '';
   let label = '';
@@ -2172,13 +2231,14 @@ function copyCmd() {
     <div class="modal-title">Security Checklist — Before Fetching</div>
     <ul class="modal-checklist">
       <li><span class="chk">✓</span><span><strong>Close all other browser tabs</strong> — CORS extensions affect every tab. Other sites could exploit the open policy while the extension is active.</span></li>
-      <li><span class="chk">✓</span><span><strong>Verify your CORS extension is ON</strong> — check the toolbar icon. If CORS auto-detected as working (green banner), you can skip this.</span></li>
+      <li><span class="chk">✓</span><span><strong>Verify your CORS extension is ON</strong> — check the toolbar icon. If the green "CORS is working" banner is shown you do not need the extension at all; leave it off.</span></li>
+      <li><span class="chk">✓</span><span><strong>Use a throwaway OTX key</strong> — it lives in this page's memory. Never paste a production or shared credential.</span></li>
       <li><span class="chk">✓</span><span><strong>Use a dedicated browser profile</strong> if possible — isolates cookies and sessions from your main browsing profile.</span></li>
       <li><span class="chk">✓</span><span><strong>Do not browse other sites</strong> while the extension is enabled — fetch your IOCs, export, then disable immediately.</span></li>
     </ul>
     <div class="modal-btns">
       <button class="modal-btn secondary" onclick="closeModal('preFetchModal')">Cancel</button>
-      <button class="modal-btn primary" onclick="closeModal('preFetchModal'); proceedFetch();">I understand — Fetch IOCs</button>
+      <button class="modal-btn primary" onclick="closeModal('preFetchModal'); acknowledgePreFetch();">I understand — Fetch IOCs</button>
     </div>
     <div class="modal-note">This checklist shows once per session. Subsequent fetches and page loads won't show it again.</div>
   </div>
@@ -2193,6 +2253,7 @@ function copyCmd() {
       <li><span class="chk">✓</span><span><strong>Disable your CORS extension NOW</strong> — click the toolbar icon and toggle it OFF before doing anything else.</span></li>
       <li><span class="chk">✓</span><span><strong>Close this tab</strong> if you're done fetching — the fewer tabs open with CORS active, the smaller your attack surface.</span></li>
       <li><span class="chk">✓</span><span><strong>Your exported file</strong> is saved to your Downloads folder. Verify it's there before closing.</span></li>
+      <li><span class="chk">✓</span><span><strong>Cells are text-quoted on export</strong> — pulse names and tags are attacker-controlled, so anything starting with = + - or @ is neutralised before Excel sees it. Still open the CSV with macros disabled.</span></li>
     </ul>
     <div class="modal-btns">
       <button class="modal-btn secondary" onclick="closeModal('postExportModal')">Stay open — I need more data</button>
