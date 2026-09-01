@@ -1832,8 +1832,8 @@ td.ioc-val {
       <option value="red">TLP:RED</option>
     </select>
     <input type="text" id="searchBox" placeholder="Search IOC value or pulse name..." oninput="renderTable()" />
-    <button class="btn btn-export" onclick="exportCSV()">Export CSV</button>
-    <button class="btn btn-export" onclick="exportJSON()">Export JSON</button>
+    <button class="btn btn-export" onclick="openExportModal('csv')">Export CSV</button>
+    <button class="btn btn-export" onclick="openExportModal('json')">Export JSON</button>
   </div>
 
   <!-- Pulse Page Nav -->
@@ -2385,20 +2385,113 @@ function switchTab(tab) {
     return `"${s.replace(/"/g, '""')}"`;
   }
 
-  function exportCSV() {
+  // ── Export options modal state ──
+  let pendingExportFormat = null;
+  const EXPORT_MONTH_NAMES = ['', 'January','February','March','April','May','June',
+                               'July','August','September','October','November','December'];
+
+  // Export operates on filteredIOCs — whatever the type/TLP/search filters
+  // above already narrowed the table to. The modal then layers year/month
+  // and dedupe on top of that, rather than silently ignoring the on-page filters.
+  function openExportModal(fmt) {
+    pendingExportFormat = fmt;
+    document.getElementById('exportModalTitle').textContent =
+      `Export ${fmt.toUpperCase()} — Choose Range`;
+    populateExportYears();
+    showModal('exportModal');
+  }
+
+  function populateExportYears() {
+    const years = [...new Set(filteredIOCs.map(i => (i.created || '').slice(0, 4)).filter(Boolean))].sort();
+    const sel = document.getElementById('exportYear');
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">All years</option>' + years.map(y => `<option value="${y}">${y}</option>`).join('');
+    if (years.includes(cur)) sel.value = cur;
+    populateExportMonths();
+  }
+
+  function populateExportMonths() {
+    const year = document.getElementById('exportYear').value;
+    const rows = year ? filteredIOCs.filter(i => (i.created || '').slice(0, 4) === year) : filteredIOCs;
+    const months = [...new Set(rows.map(i => (i.created || '').slice(5, 7)).filter(Boolean))].sort();
+    const sel = document.getElementById('exportMonth');
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">All months</option>' +
+      months.map(m => `<option value="${m}">${EXPORT_MONTH_NAMES[parseInt(m, 10)] || m}</option>`).join('');
+    if (months.includes(cur)) sel.value = cur;
+    updateExportPreview();
+  }
+
+  function filterByExportDate(rows) {
+    const year = document.getElementById('exportYear').value;
+    const month = document.getElementById('exportMonth').value;
+    if (!year && !month) return rows;
+    return rows.filter(i => {
+      const d = i.created || '';
+      if (!d) return false;   // undated rows are dropped once a range is picked — they can't be placed in it
+      if (year && d.slice(0, 4) !== year) return false;
+      if (month && d.slice(5, 7) !== month) return false;
+      return true;
+    });
+  }
+
+  // Same "value + type" identity as the Unique IOCs stat card, so the
+  // dedupe option matches what the UI already calls "unique". Keeps the
+  // earliest-appearing row for each key.
+  function dedupeRows(rows) {
+    const seen = new Set();
+    const out = [];
+    for (const r of rows) {
+      const k = `${r.value}|${r.type}`;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push(r);
+    }
+    return out;
+  }
+
+  function computeExportRows() {
+    let rows = filterByExportDate(filteredIOCs);
+    if (document.getElementById('exportDedupe').checked) rows = dedupeRows(rows);
+    return rows;
+  }
+
+  function updateExportPreview() {
+    const n = computeExportRows().length;
+    const year = document.getElementById('exportYear').value;
+    const month = document.getElementById('exportMonth').value;
+    const scope = year
+      ? (month ? `${EXPORT_MONTH_NAMES[parseInt(month, 10)]} ${year}` : `all of ${year}`)
+      : 'all loaded dates';
+    document.getElementById('exportPreview').textContent =
+      `${n.toLocaleString()} row(s) — ${scope}, ${document.getElementById('exportDedupe').checked ? 'deduplicated' : 'not deduplicated'}.`;
+  }
+
+  function confirmExport() {
+    const rows = computeExportRows();
+    if (rows.length === 0) {
+      showError('No IOCs match the selected year/month for export. Adjust the range and try again.');
+      closeModal('exportModal');
+      return;
+    }
+    if (pendingExportFormat === 'csv') doExportCSV(rows);
+    else doExportJSON(rows);
+    closeModal('exportModal');
+    if (!postExportShown) { postExportShown = true; showModal('postExportModal'); }
+  }
+
+  function doExportCSV(rows) {
     const h = ['Date','IOC Value','Type','Pulse','Pulse URL','Author','TLP','Tags','Created','Description'];
-    const rows = filteredIOCs.map(i => [
+    const csvRows = rows.map(i => [
       i.created ? i.created.slice(0,10) : '', i.value, i.type, i.pulse, i.pulse_url,
       i.author, i.tlp, i.tags, i.created, i.description
     ].map(csvCell).join(','));
     // CRLF + BOM so Excel opens UTF-8 IOCs correctly instead of mangling them.
-    dl(`AlienVault_IOCs_${ts()}.csv`, '\uFEFF' + [h.map(csvCell).join(','), ...rows].join('\r\n'), 'text/csv;charset=utf-8');
-    if (!postExportShown) { postExportShown = true; showModal('postExportModal'); }
+    dl(`AlienVault_IOCs_${ts()}.csv`, '\uFEFF' + [h.map(csvCell).join(','), ...csvRows].join('\r\n'), 'text/csv;charset=utf-8');
   }
 
-  function exportJSON() {
-    dl(`AlienVault_IOCs_${ts()}.json`, JSON.stringify(filteredIOCs, null, 2), 'application/json');
-    if (!postExportShown) { postExportShown = true; showModal('postExportModal'); }
+  function doExportJSON(rows) {
+    dl(`AlienVault_IOCs_${ts()}.json`, JSON.stringify(rows, null, 2), 'application/json');
   }
 
   function dl(name, content, type) {
@@ -2601,6 +2694,37 @@ function copyCmd() {
       <button class="modal-btn primary" onclick="closeModal('preFetchModal'); acknowledgePreFetch();">I understand — Fetch IOCs</button>
     </div>
     <div class="modal-note">This checklist shows once per session. Subsequent fetches and page loads won't show it again.</div>
+  </div>
+</div>
+
+<!-- Export options modal (AlienVault) -->
+<div class="modal-overlay" id="exportModal">
+  <div class="modal-box">
+    <div class="modal-icon ok">⇩</div>
+    <div class="modal-title" id="exportModalTitle">Export — Choose Range</div>
+
+    <div class="section-label" style="margin-top:2px">Date Range (by indicator date)</div>
+    <div class="key-row" style="margin-bottom:16px">
+      <select id="exportYear" onchange="populateExportMonths()"
+              style="flex:1;min-width:140px;height:38px;background:var(--void);border:1px solid var(--hairline-2);color:var(--ink);font-family:var(--mono);font-size:12px;padding:0 10px;"></select>
+      <select id="exportMonth" onchange="updateExportPreview()"
+              style="flex:1;min-width:140px;height:38px;background:var(--void);border:1px solid var(--hairline-2);border-left:none;color:var(--ink);font-family:var(--mono);font-size:12px;padding:0 10px;"></select>
+    </div>
+
+    <label style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid var(--hairline);background:var(--void);cursor:pointer;margin-bottom:14px">
+      <input type="checkbox" id="exportDedupe" checked onchange="updateExportPreview()" style="accent-color:var(--signal);width:15px;height:15px;flex-shrink:0" />
+      <span style="font-size:11.5px;color:var(--ink-2);line-height:1.6">
+        <strong style="color:var(--ink)">Deduplicate IOCs</strong> — one row per unique value + type (matches the "Unique IOCs" stat). Uncheck to keep every pulse mention as its own row.
+      </span>
+    </label>
+
+    <div class="modal-note" id="exportPreview" style="color:var(--ink-2);font-size:11px">—</div>
+
+    <div class="modal-btns">
+      <button class="modal-btn secondary" onclick="closeModal('exportModal')">Cancel</button>
+      <button class="modal-btn primary" onclick="confirmExport()">Download</button>
+    </div>
+    <div class="modal-note">Range applies to the loaded, currently filtered IOCs — load more pulse pages first if the month you need isn't listed.</div>
   </div>
 </div>
 
