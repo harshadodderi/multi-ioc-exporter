@@ -1597,6 +1597,44 @@ td.ioc-val {
   line-height: 1.7;
 }
 
+/* ── Export modal pills (format / quick-range) ── */
+.exp-pill {
+  flex: 1;
+  height: 36px;
+  border: 1px solid var(--hairline-2);
+  border-left: none;
+  background: var(--void);
+  color: var(--ink-2);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.exp-pill:first-child { border-left: 1px solid var(--hairline-2); }
+
+.exp-pill.on {
+  background: var(--signal);
+  border-color: var(--signal);
+  color: #05070A;
+  font-weight: 600;
+}
+
+.exp-pill:hover:not(.on) { background: var(--raised); color: var(--ink); }
+
+.modal-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.modal-btn:disabled:hover {
+  background: var(--signal);
+  color: #05070A;
+}
+
 .security-reminder {
   display: none;
   margin-top: 12px;
@@ -1832,8 +1870,7 @@ td.ioc-val {
       <option value="red">TLP:RED</option>
     </select>
     <input type="text" id="searchBox" placeholder="Search IOC value or pulse name..." oninput="renderTable()" />
-    <button class="btn btn-export" onclick="openExportModal('csv')">Export CSV</button>
-    <button class="btn btn-export" onclick="openExportModal('json')">Export JSON</button>
+    <button class="btn btn-export" onclick="openExportModal()">Export…</button>
   </div>
 
   <!-- Pulse Page Nav -->
@@ -2004,6 +2041,20 @@ function switchTab(tab) {
     document.body.classList.remove('theme-av');
   }
 }
+
+// ── Modal dismissal: Escape key or backdrop click closes any open modal.
+// Delegated once at the document level so it covers all three modals
+// (pre-fetch, export, post-export) without per-modal wiring.
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
+  }
+});
+document.addEventListener('click', e => {
+  if (e.target.classList.contains('modal-overlay') && e.target.classList.contains('active')) {
+    e.target.classList.remove('active');
+  }
+});
 </script>
 
 <!-- ══════════════════════════════════════════════ -->
@@ -2386,26 +2437,64 @@ function switchTab(tab) {
   }
 
   // ── Export options modal state ──
-  let pendingExportFormat = null;
+  // Persist across opens within the session (item 10) — only reset by explicit
+  // user action inside the modal, never by re-opening it.
+  let exportFormat = 'csv';                 // 'csv' | 'json' | 'both'
+  let exportPreset = 'all';                 // 'all' | 'thisyear' | 'last30' | 'last90' | 'custom'
   const EXPORT_MONTH_NAMES = ['', 'January','February','March','April','May','June',
                                'July','August','September','October','November','December'];
 
   // Export operates on filteredIOCs — whatever the type/TLP/search filters
-  // above already narrowed the table to. The modal then layers year/month
+  // above already narrowed the table to. The modal then layers a date range
   // and dedupe on top of that, rather than silently ignoring the on-page filters.
-  function openExportModal(fmt) {
-    pendingExportFormat = fmt;
-    document.getElementById('exportModalTitle').textContent =
-      `Export ${fmt.toUpperCase()} — Choose Range`;
-    populateExportYears();
+  function openExportModal() {
+    populateExportYears();      // rebuilds year/month <option> lists + counts
+    setExportFormat(exportFormat);
+    setExportPreset(exportPreset, /*fromReopen*/ true);
+    updatePagesLoadedNote();
     showModal('exportModal');
   }
 
+  function setExportFormat(fmt) {
+    exportFormat = fmt;
+    document.querySelectorAll('#exportFormatRow .exp-pill').forEach(b => {
+      b.classList.toggle('on', b.dataset.fmt === fmt);
+    });
+  }
+
+  // Quick-range presets operate on real date arithmetic (last 30/90 days),
+  // which the year/month selects can't express on their own. Picking a
+  // preset clears the custom year/month selects; manually changing either
+  // select falls back to 'custom' (handled in onExportYearMonthChange).
+  function setExportPreset(preset, fromReopen) {
+    exportPreset = preset;
+    document.querySelectorAll('#exportPresetRow .exp-pill').forEach(b => {
+      b.classList.toggle('on', b.dataset.preset === preset);
+    });
+    if (!fromReopen) {
+      document.getElementById('exportYear').value = '';
+      populateExportMonths();
+    }
+    updateExportPreview();
+  }
+
+  function onExportYearMonthChange() {
+    exportPreset = 'custom';
+    document.querySelectorAll('#exportPresetRow .exp-pill').forEach(b => b.classList.remove('on'));
+    populateExportMonths();
+  }
+
   function populateExportYears() {
-    const years = [...new Set(filteredIOCs.map(i => (i.created || '').slice(0, 4)).filter(Boolean))].sort();
+    const counts = {};
+    filteredIOCs.forEach(i => {
+      const y = (i.created || '').slice(0, 4);
+      if (y) counts[y] = (counts[y] || 0) + 1;
+    });
+    const years = Object.keys(counts).sort();
     const sel = document.getElementById('exportYear');
     const cur = sel.value;
-    sel.innerHTML = '<option value="">All years</option>' + years.map(y => `<option value="${y}">${y}</option>`).join('');
+    sel.innerHTML = '<option value="">All years</option>' +
+      years.map(y => `<option value="${y}">${y} (${counts[y].toLocaleString()})</option>`).join('');
     if (years.includes(cur)) sel.value = cur;
     populateExportMonths();
   }
@@ -2413,79 +2502,171 @@ function switchTab(tab) {
   function populateExportMonths() {
     const year = document.getElementById('exportYear').value;
     const rows = year ? filteredIOCs.filter(i => (i.created || '').slice(0, 4) === year) : filteredIOCs;
-    const months = [...new Set(rows.map(i => (i.created || '').slice(5, 7)).filter(Boolean))].sort();
+    const counts = {};
+    rows.forEach(i => {
+      const m = (i.created || '').slice(5, 7);
+      if (m) counts[m] = (counts[m] || 0) + 1;
+    });
+    const months = Object.keys(counts).sort();
     const sel = document.getElementById('exportMonth');
     const cur = sel.value;
     sel.innerHTML = '<option value="">All months</option>' +
-      months.map(m => `<option value="${m}">${EXPORT_MONTH_NAMES[parseInt(m, 10)] || m}</option>`).join('');
+      months.map(m => `<option value="${m}">${EXPORT_MONTH_NAMES[parseInt(m, 10)] || m} (${counts[m].toLocaleString()})</option>`).join('');
     if (months.includes(cur)) sel.value = cur;
     updateExportPreview();
   }
 
+  function updatePagesLoadedNote() {
+    const el = document.getElementById('exportPagesLoadedNote');
+    if (!el) return;
+    const capPages = MAX_PULSE_PAGES;
+    const capPulses = MAX_PULSE_PAGES * 50;
+    let txt = `${loadedPulsePages.size} of ${capPages} pulse page(s) loaded`;
+    if (subscribedPulseCount !== null) {
+      txt += ` (${subscribedPulseCount.toLocaleString()} subscribed pulses total, tool caps at ${capPulses.toLocaleString()})`;
+    }
+    el.textContent = txt;
+  }
+
+  // Returns { rows, excludedNoDate } — excludedNoDate is 0 when no range is
+  // active (an unfiltered export never drops undated rows).
   function filterByExportDate(rows) {
-    const year = document.getElementById('exportYear').value;
-    const month = document.getElementById('exportMonth').value;
-    if (!year && !month) return rows;
-    return rows.filter(i => {
-      const d = i.created || '';
-      if (!d) return false;   // undated rows are dropped once a range is picked — they can't be placed in it
-      if (year && d.slice(0, 4) !== year) return false;
-      if (month && d.slice(5, 7) !== month) return false;
-      return true;
-    });
+    if (exportPreset === 'all' && !document.getElementById('exportYear').value && !document.getElementById('exportMonth').value) {
+      return { rows, excludedNoDate: 0 };
+    }
+
+    let inRange;
+    if (exportPreset === 'thisyear' || exportPreset === 'last30' || exportPreset === 'last90') {
+      const now = new Date();
+      let cutoff = null;
+      if (exportPreset === 'thisyear') cutoff = new Date(now.getFullYear(), 0, 1);
+      if (exportPreset === 'last30') cutoff = new Date(now.getTime() - 30 * 86400000);
+      if (exportPreset === 'last90') cutoff = new Date(now.getTime() - 90 * 86400000);
+      inRange = i => {
+        const d = i.created ? new Date(i.created) : null;
+        return d && !isNaN(d) && d >= cutoff;
+      };
+    } else {
+      const year = document.getElementById('exportYear').value;
+      const month = document.getElementById('exportMonth').value;
+      inRange = i => {
+        const d = i.created || '';
+        if (!d) return false;
+        if (year && d.slice(0, 4) !== year) return false;
+        if (month && d.slice(5, 7) !== month) return false;
+        return true;
+      };
+    }
+
+    const kept = [];
+    let excludedNoDate = 0;
+    for (const i of rows) {
+      if (!i.created) { excludedNoDate++; continue; }
+      if (inRange(i)) kept.push(i);
+    }
+    return { rows: kept, excludedNoDate };
   }
 
   // Same "value + type" identity as the Unique IOCs stat card, so the
-  // dedupe option matches what the UI already calls "unique". Keeps the
-  // earliest-appearing row for each key.
+  // dedupe option matches what the UI already calls "unique". Rather than
+  // discarding duplicates, merges their pulse names, authors and tags so
+  // that information survives the collapse, and records how many pulses
+  // each IOC was seen in.
   function dedupeRows(rows) {
-    const seen = new Set();
-    const out = [];
+    const map = new Map();
     for (const r of rows) {
       const k = `${r.value}|${r.type}`;
-      if (seen.has(k)) continue;
-      seen.add(k);
-      out.push(r);
+      if (!map.has(k)) {
+        map.set(k, {
+          value: r.value, type: r.type, tlp: r.tlp, description: r.description,
+          created: r.created || '',
+          pulses: r.pulse ? [r.pulse] : [],
+          pulse_urls: r.pulse_url ? [r.pulse_url] : [],
+          authors: new Set(r.author ? [r.author] : []),
+          tagSet: new Set((r.tags || '').split(',').map(t => t.trim()).filter(Boolean)),
+          occurrences: 1
+        });
+      } else {
+        const agg = map.get(k);
+        agg.occurrences++;
+        if (r.pulse && !agg.pulses.includes(r.pulse)) agg.pulses.push(r.pulse);
+        if (r.pulse_url && !agg.pulse_urls.includes(r.pulse_url)) agg.pulse_urls.push(r.pulse_url);
+        if (r.author) agg.authors.add(r.author);
+        (r.tags || '').split(',').map(t => t.trim()).filter(Boolean).forEach(t => agg.tagSet.add(t));
+        // Keep the earliest known date across duplicates.
+        if (r.created && (!agg.created || r.created < agg.created)) agg.created = r.created;
+      }
     }
-    return out;
+    return [...map.values()].map(agg => ({
+      value: agg.value,
+      type: agg.type,
+      created: agg.created,
+      pulse: agg.pulses[0] || '',
+      pulse_url: agg.pulse_urls[0] || '',
+      all_pulses: agg.pulses,
+      all_pulse_urls: agg.pulse_urls,
+      author: [...agg.authors].join(', '),
+      tlp: agg.tlp,
+      tags: [...agg.tagSet].join(', '),
+      description: agg.description,
+      occurrences: agg.occurrences
+    }));
   }
 
   function computeExportRows() {
-    let rows = filterByExportDate(filteredIOCs);
-    if (document.getElementById('exportDedupe').checked) rows = dedupeRows(rows);
-    return rows;
+    const { rows: dateFiltered, excludedNoDate } = filterByExportDate(filteredIOCs);
+    const deduped = document.getElementById('exportDedupe').checked;
+    const rows = deduped ? dedupeRows(dateFiltered) : dateFiltered;
+    return { rows, excludedNoDate };
+  }
+
+  function describeExportScope() {
+    if (exportPreset === 'thisyear') return `this year (${new Date().getFullYear()})`;
+    if (exportPreset === 'last30') return 'the last 30 days';
+    if (exportPreset === 'last90') return 'the last 90 days';
+    const year = document.getElementById('exportYear').value;
+    const month = document.getElementById('exportMonth').value;
+    if (!year && !month) return 'all loaded dates';
+    return year ? (month ? `${EXPORT_MONTH_NAMES[parseInt(month, 10)]} ${year}` : `all of ${year}`) : 'all loaded dates';
   }
 
   function updateExportPreview() {
-    const n = computeExportRows().length;
-    const year = document.getElementById('exportYear').value;
-    const month = document.getElementById('exportMonth').value;
-    const scope = year
-      ? (month ? `${EXPORT_MONTH_NAMES[parseInt(month, 10)]} ${year}` : `all of ${year}`)
-      : 'all loaded dates';
-    document.getElementById('exportPreview').textContent =
-      `${n.toLocaleString()} row(s) — ${scope}, ${document.getElementById('exportDedupe').checked ? 'deduplicated' : 'not deduplicated'}.`;
+    const { rows, excludedNoDate } = computeExportRows();
+    const n = rows.length;
+    const deduped = document.getElementById('exportDedupe').checked;
+    let text = `${n.toLocaleString()} row(s) — ${describeExportScope()}, ${deduped ? 'deduplicated' : 'not deduplicated'}.`;
+    if (excludedNoDate > 0) text += ` ${excludedNoDate.toLocaleString()} row(s) excluded — no date, can't be placed in this range.`;
+    if (exportFormat === 'both') text += ' Downloads as CSV + JSON.';
+    document.getElementById('exportPreview').textContent = text;
+
+    const btn = document.getElementById('exportDownloadBtn');
+    btn.disabled = (n === 0);
   }
 
   function confirmExport() {
-    const rows = computeExportRows();
-    if (rows.length === 0) {
-      showError('No IOCs match the selected year/month for export. Adjust the range and try again.');
-      closeModal('exportModal');
-      return;
-    }
-    if (pendingExportFormat === 'csv') doExportCSV(rows);
-    else doExportJSON(rows);
+    const { rows } = computeExportRows();
+    if (rows.length === 0) return;   // Download button is disabled in this state, but guard anyway
+    if (exportFormat === 'csv' || exportFormat === 'both') doExportCSV(rows);
+    if (exportFormat === 'json' || exportFormat === 'both') doExportJSON(rows);
     closeModal('exportModal');
     if (!postExportShown) { postExportShown = true; showModal('postExportModal'); }
   }
 
   function doExportCSV(rows) {
-    const h = ['Date','IOC Value','Type','Pulse','Pulse URL','Author','TLP','Tags','Created','Description'];
-    const csvRows = rows.map(i => [
-      i.created ? i.created.slice(0,10) : '', i.value, i.type, i.pulse, i.pulse_url,
-      i.author, i.tlp, i.tags, i.created, i.description
-    ].map(csvCell).join(','));
+    const enriched = rows.length > 0 && 'occurrences' in rows[0];
+    const h = enriched
+      ? ['Date','IOC Value','Type','Pulse','Pulse URL','All Pulses','Author','TLP','Tags','Occurrences','Created','Description']
+      : ['Date','IOC Value','Type','Pulse','Pulse URL','Author','TLP','Tags','Created','Description'];
+    const csvRows = rows.map(i => {
+      const base = [
+        i.created ? i.created.slice(0,10) : '', i.value, i.type, i.pulse, i.pulse_url
+      ];
+      if (enriched) base.push((i.all_pulses || []).join('; '));
+      base.push(i.author, i.tlp, i.tags);
+      if (enriched) base.push(i.occurrences);
+      base.push(i.created, i.description);
+      return base.map(csvCell).join(',');
+    });
     // CRLF + BOM so Excel opens UTF-8 IOCs correctly instead of mangling them.
     dl(`AlienVault_IOCs_${ts()}.csv`, '\uFEFF' + [h.map(csvCell).join(','), ...csvRows].join('\r\n'), 'text/csv;charset=utf-8');
   }
@@ -2701,30 +2882,47 @@ function copyCmd() {
 <div class="modal-overlay" id="exportModal">
   <div class="modal-box">
     <div class="modal-icon ok">⇩</div>
-    <div class="modal-title" id="exportModalTitle">Export — Choose Range</div>
+    <div class="modal-title">Export — Choose Range &amp; Format</div>
 
-    <div class="section-label" style="margin-top:2px">Date Range (by indicator date)</div>
-    <div class="key-row" style="margin-bottom:16px">
-      <select id="exportYear" onchange="populateExportMonths()"
+    <div class="section-label" style="margin-top:2px">Format</div>
+    <div class="key-row" style="margin-bottom:16px" id="exportFormatRow">
+      <button type="button" class="exp-pill" data-fmt="csv" onclick="setExportFormat('csv')">CSV</button>
+      <button type="button" class="exp-pill" data-fmt="json" onclick="setExportFormat('json')">JSON</button>
+      <button type="button" class="exp-pill" data-fmt="both" onclick="setExportFormat('both')">Both</button>
+    </div>
+
+    <div class="section-label">Quick Range</div>
+    <div class="key-row" style="margin-bottom:14px" id="exportPresetRow">
+      <button type="button" class="exp-pill" data-preset="all" onclick="setExportPreset('all')">All time</button>
+      <button type="button" class="exp-pill" data-preset="thisyear" onclick="setExportPreset('thisyear')">This year</button>
+      <button type="button" class="exp-pill" data-preset="last30" onclick="setExportPreset('last30')">Last 30 days</button>
+      <button type="button" class="exp-pill" data-preset="last90" onclick="setExportPreset('last90')">Last 90 days</button>
+    </div>
+
+    <div class="section-label">Or pick Year / Month (by indicator date)</div>
+    <div class="key-row" style="margin-bottom:10px">
+      <select id="exportYear" onchange="onExportYearMonthChange()"
               style="flex:1;min-width:140px;height:38px;background:var(--void);border:1px solid var(--hairline-2);color:var(--ink);font-family:var(--mono);font-size:12px;padding:0 10px;"></select>
-      <select id="exportMonth" onchange="updateExportPreview()"
+      <select id="exportMonth" onchange="onExportYearMonthChange()"
               style="flex:1;min-width:140px;height:38px;background:var(--void);border:1px solid var(--hairline-2);border-left:none;color:var(--ink);font-family:var(--mono);font-size:12px;padding:0 10px;"></select>
+    </div>
+    <div class="modal-note" style="margin-top:0;margin-bottom:14px">
+      Only pulse pages you've loaded are searched — <span id="exportPagesLoadedNote">page 1 of up to 10 loaded</span>. Load more pulse pages first if the month you need isn't listed. If an indicator has no date of its own, its pulse's date is used instead; rows with neither are excluded once a specific range is picked.
     </div>
 
     <label style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid var(--hairline);background:var(--void);cursor:pointer;margin-bottom:14px">
       <input type="checkbox" id="exportDedupe" checked onchange="updateExportPreview()" style="accent-color:var(--signal);width:15px;height:15px;flex-shrink:0" />
       <span style="font-size:11.5px;color:var(--ink-2);line-height:1.6">
-        <strong style="color:var(--ink)">Deduplicate IOCs</strong> — one row per unique value + type (matches the "Unique IOCs" stat). Uncheck to keep every pulse mention as its own row.
+        <strong style="color:var(--ink)">Deduplicate IOCs</strong> — one row per unique value + type (matches the "Unique IOCs" stat). Pulse, author and tags are merged across duplicates rather than discarded; an "Occurrences" column records how many pulses each IOC appeared in. Uncheck to keep every pulse mention as its own row.
       </span>
     </label>
 
-    <div class="modal-note" id="exportPreview" style="color:var(--ink-2);font-size:11px">—</div>
+    <div class="modal-note" id="exportPreview" style="color:var(--ink-2);font-size:11.5px;font-weight:500">—</div>
 
     <div class="modal-btns">
       <button class="modal-btn secondary" onclick="closeModal('exportModal')">Cancel</button>
-      <button class="modal-btn primary" onclick="confirmExport()">Download</button>
+      <button class="modal-btn primary" id="exportDownloadBtn" onclick="confirmExport()">Download</button>
     </div>
-    <div class="modal-note">Range applies to the loaded, currently filtered IOCs — load more pulse pages first if the month you need isn't listed.</div>
   </div>
 </div>
 
