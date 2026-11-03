@@ -2783,7 +2783,8 @@ function generate() {
   // break out of the string and change what the command does.
   const psKey = key.replace(/'/g, "''");
   const h = `$k='${psKey}';$h=@{"Auth-Key"=$k}`;
-  const dir = `$d=".\\abuse_ch_iocs";md $d -Force|Out-Null;$t=Get-Date -F "yyyy-MM-dd_HH-mm-ss"`;
+  const dir = `$d=try{(New-Object -ComObject Shell.Application).NameSpace('shell:Downloads').Self.Path}catch{"$env:USERPROFILE\\Downloads"};$d="$d\\abuse_ch_iocs";md $d -Force|Out-Null;$t=Get-Date -F "yyyy-MM-dd_HH-mm-ss"`;
+
 
   const mbFetch = `Write-Host "\`n=== MalwareBazaar ===" -Fore Cyan;$mb=(irm "https://mb-api.abuse.ch/api/v1/" -Method Post -Headers $h -Body "query=get_recent&selector=time&limit=1000").data;Write-Host "  $($mb.Count) samples" -Fore Green`;
   const mbParse = `$mb|%{$all+=[pscustomobject]@{Date=$_.first_seen;IOC=$_.sha256_hash;Type="SHA256";Provider="MalwareBazaar";Family=$_.signature;Tags=($_.tags-join", ")}}`;
@@ -2794,7 +2795,7 @@ function generate() {
   const tfFetch = `Write-Host "\`n=== ThreatFox ===" -Fore Cyan;$tf=(irm "https://threatfox-api.abuse.ch/api/v1/" -Method Post -Headers $h -Body '{"query":"get_iocs","days":7}' -ContentType "application/json").data;Write-Host "  $($tf.Count) IOCs" -Fore Green`;
   const tfParse = `$tf|%{$all+=[pscustomobject]@{Date=$_.first_seen;IOC=$_.ioc;Type=$_.ioc_type;Provider="ThreatFox";Family=$_.malware;Tags=($_.tags-join", ")}}`;
 
-  const exportPart = `$all|Export-Csv "$d\\iocs_$t.csv" -NoType;$all|select -Expand IOC|Out-File "$d\\iocs_$t.txt";$fullPath=(Resolve-Path $d).FullName;$csvFile="$fullPath\\iocs_$t.csv";$txtFile="$fullPath\\iocs_$t.txt";Write-Host "\`n📁 Please find the IOCs at:" -Fore Green;Write-Host "  $csvFile" -Fore Cyan;Write-Host "  $txtFile" -Fore Cyan;Write-Host "\`nTotal: $($all.Count) IOCs exported" -Fore Green`;
+  const exportPart = `$all|Export-Csv "$d\\iocs_$t.csv" -NoType -Encoding UTF8;$all|select -Expand IOC|Out-File "$d\\iocs_$t.txt" -Encoding utf8;$csvFile="$d\\iocs_$t.csv";$txtFile="$d\\iocs_$t.txt";Write-Host "\`n📁 Files are available in Downloads\\abuse_ch_iocs:" -Fore Green;Write-Host "  $csvFile" -Fore Cyan;Write-Host "  $txtFile" -Fore Cyan;Write-Host "\`nTotal: $($all.Count) IOCs exported" -Fore Green`;
 
   // Auto-cleanup.
   // NOTE: [PSConsoleReadLine]::ClearHistory() only clears the IN-MEMORY buffer.
